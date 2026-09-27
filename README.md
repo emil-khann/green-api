@@ -1,23 +1,25 @@
 # GREEN-API MAX Chat
 
-Веб-клиент для личных чатов MAX через GREEN-API. Проект собран на React 19, TypeScript и Vite.
+[Русская версия](README.ru.md)
 
-## Возможности
+A web client for private MAX chats powered by GREEN-API. Built with React 19, TypeScript, and Vite.
 
-- несколько личных диалогов;
-- отправка и получение текста и изображений;
-- создание чата по номеру России или Беларуси;
-- поиск по чатам и отдельный список непрочитанных;
-- счётчики новых диалогов и сообщений;
-- имя, аватар и время последней активности контакта;
-- автоматическая светлая или тёмная тема по настройкам системы;
-- адаптивный интерфейс.
+## Features
 
-Группы, каналы и звонки не поддерживаются.
+- multiple private conversations;
+- text and image messaging;
+- chat creation by Russian or Belarusian phone number;
+- chat search and a dedicated unread view;
+- unread conversation and message counters;
+- contact name, avatar, and last-seen status;
+- automatic light or dark theme based on system preferences;
+- responsive layout.
 
-## Запуск
+Groups, channels, and calls are not supported.
 
-Требуются Node.js 24 и pnpm 10.
+## Development
+
+Requires Node.js 24 and pnpm 10.
 
 ```bash
 nvm use
@@ -25,43 +27,43 @@ pnpm install
 pnpm dev
 ```
 
-Основные команды:
+Available commands:
 
 ```bash
-pnpm build       # TypeScript и production-сборка
+pnpm build       # TypeScript check and production build
 pnpm lint        # ESLint
-pnpm typecheck   # проверка типов
-pnpm test --run  # тесты Vitest
-pnpm test:e2e    # smoke-тест Playwright
+pnpm typecheck   # TypeScript check
+pnpm test --run  # Vitest test suite
+pnpm test:e2e    # Playwright smoke test
 ```
 
-## Подключение
+## GREEN-API setup
 
-1. Создайте и авторизуйте MAX instance в [GREEN-API Console](https://console.green-api.com/).
-2. Включите входящие уведомления в настройках instance.
-3. Оставьте `webhookUrl` пустым: клиент получает сообщения через HTTP API polling.
-4. Введите в приложении `apiUrl`, `idInstance` и `apiTokenInstance`.
-5. Нажмите «Подключиться».
+1. Create and authorize a MAX instance in the [GREEN-API Console](https://console.green-api.com/).
+2. Enable incoming notifications in the instance settings.
+3. Keep `webhookUrl` empty: the client receives messages through HTTP API polling.
+4. Enter `apiUrl`, `idInstance`, and `apiTokenInstance` in the application.
+5. Select **Connect**.
 
-После подключения нажмите `+`, чтобы создать чат по номеру телефона. Поддерживаются российские номера с кодом `7` и белорусские с кодом `375`.
+After connecting, select `+` to create a chat by phone number. Russian numbers with country code `7` and Belarusian numbers with country code `375` are supported.
 
-Используемые методы GREEN-API:
+The client uses these GREEN-API methods:
 
-- `CheckAccount` — проверка номера и получение MAX `chatId`;
-- `GetContactInfo` — имя, аватар и `lastSeen`;
-- `SendMessage` и `SendFileByUpload` — отправка;
-- `ReceiveNotification` и `DeleteNotification` — получение и подтверждение уведомлений.
+- `CheckAccount` to validate a number and obtain its MAX `chatId`;
+- `GetContactInfo` to load the contact name, avatar, and `lastSeen`;
+- `SendMessage` and `SendFileByUpload` to send content;
+- `ReceiveNotification` and `DeleteNotification` to receive and acknowledge notifications.
 
-## Хранение данных
+## Data storage
 
-Реквизиты, чаты и сообщения хранятся только в памяти текущей вкладки. После перезагрузки страницы или переподключения состояние очищается.
+Credentials, chats, and messages are stored only in the current tab's memory. Reloading the page or reconnecting clears the application state.
 
-При потере сети получение и отправка приостанавливаются и возобновляются после восстановления соединения. Офлайн-очереди и фоновой отправки нет.
+Sending and receiving pause while the device is offline and resume when the connection is restored. There is no offline queue or background delivery.
 
-Не публикуйте реальные API-токены в репозитории, `.env`, скриншотах или логах. Для production рекомендуется backend/proxy: браузерное приложение не может скрыть токен от DevTools и расширений.
+Never publish real API tokens in the repository, `.env` files, screenshots, or logs. A backend or proxy is recommended for production because a browser client cannot hide a token from DevTools or extensions.
 
-## Архитектура
+## Architecture
 
-Код разделён на `domain`, `application`, `infrastructure` и `presentation`. GREEN-API подключён через порт `GreenApiPort`, внешние ответы проверяются Zod-схемами, состояние диалогов хранится в нормализованном reducer.
+The codebase is divided into `domain`, `application`, `infrastructure`, and `presentation` layers. GREEN-API is accessed through the `GreenApiPort`; external responses are validated with Zod schemas, and conversation data is stored in a normalized reducer.
 
-Подробности: [архитектура](docs/architecture.md) и [ADR](docs/adr/).
+See the [architecture overview](docs/architecture.md) and [ADRs](docs/adr/) for details.
