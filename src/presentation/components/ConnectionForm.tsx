@@ -16,7 +16,7 @@ export function ConnectionForm() {
   }
 
   return <form className="connection-form" onSubmit={submit} noValidate>
-    <div className="brand"><span className="brand-mark" aria-hidden="true">G</span><div><strong>GREEN Chat</strong><span>Несколько диалогов в одном окне</span></div></div>
+    <div className="brand"><span className="brand-mark" aria-hidden="true">M</span><div><strong>MAX Chat</strong><span>Чаты через GREEN-API</span></div></div>
     <label>Адрес API<input value={apiUrl} onChange={(event) => { setApiUrl(event.target.value); }} aria-describedby="api-help connection-error" spellCheck={false} autoComplete="url" /></label>
     <p id="api-help" className="field-help">Скопируйте apiUrl из личного кабинета GREEN-API.</p>
     <label>ID instance<input value={idInstance} onChange={(event) => { setIdInstance(event.target.value); }} inputMode="numeric" aria-describedby="connection-error" autoComplete="off" /></label>

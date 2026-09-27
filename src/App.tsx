@@ -17,7 +17,7 @@ function ChatApplication() {
   const [mobileListVisible, setMobileListVisible] = useState(true);
   if (!session) return <main className="connection-page"><ConnectionForm /></main>;
   return <main className={mobileListVisible ? "app-shell show-list" : "app-shell show-chat"}>
-    <aside className="sidebar"><div className="sidebar-top"><div className="brand compact"><span className="brand-mark" aria-hidden="true">G</span><strong>GREEN Chat</strong></div><NewChatForm /><details className="connection-settings"><summary>Настроить подключение</summary><ConnectionForm /></details></div><ConversationList onSelect={() => { setMobileListVisible(false); }} /></aside>
+    <aside className="sidebar"><div className="sidebar-top"><div className="brand compact"><span className="brand-mark" aria-hidden="true">M</span><strong>MAX Chat</strong></div><NewChatForm /><details className="connection-settings"><summary>Настроить подключение</summary><ConnectionForm /></details></div><ConversationList onSelect={() => { setMobileListVisible(false); }} /></aside>
     <section className="chat-pane"><ChatHeader onBack={() => { setMobileListVisible(true); }} /><StatusBanner /><div className="message-scroll"><MessageList /></div><MessageComposer /></section>
     <span className="sr-only" aria-live="polite">{state.activeChatId ? "Чат выбран" : "Чат не выбран"}</span>
   </main>;
