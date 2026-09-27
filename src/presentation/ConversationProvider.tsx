@@ -28,6 +28,7 @@ interface ConversationContextValue {
   isOnline: boolean;
   pumpStatus: NotificationPumpStatus;
   activeMessages: readonly ConversationMessage[];
+  activeContactLastSeen: number | null | undefined;
 }
 
 const StateContext = createContext<ConversationContextValue | null>(null);
@@ -47,6 +48,7 @@ export interface ConversationProviderProps {
 export function ConversationProvider({ client, children, idFactory = defaultIdFactory }: ConversationProviderProps) {
   const [state, dispatch] = useReducer(conversationReducer, null, () => createConversationState());
   const [session, setSession] = useState<AppliedSession | null>(null);
+  const [activeContactLastSeen, setActiveContactLastSeen] = useState<number | null | undefined>(undefined);
   const isOnline = useNetworkStatus();
   const ignoredTotalsRef = useRef({ ignored: 0, malformed: 0 });
   const sessionRef = useRef<AppliedSession | null>(null);
@@ -78,6 +80,17 @@ export function ConversationProvider({ client, children, idFactory = defaultIdFa
   }, []);
 
   const pumpStatus = useNotificationPump({ client, session, isOnline, onIncoming, onIgnored });
+
+  useEffect(() => {
+    const chatId = state.activeChatId;
+    if (!session || !chatId || !isOnline || !client.getContactInfo) { setActiveContactLastSeen(undefined); return; }
+    const controller = new AbortController();
+    setActiveContactLastSeen(undefined);
+    void client.getContactInfo(session, chatId, controller.signal).then((result) => {
+      if (!controller.signal.aborted) setActiveContactLastSeen(result.ok ? result.value.lastSeen : null);
+    });
+    return () => controller.abort();
+  }, [client, isOnline, session, state.activeChatId]);
 
   const applySession = useCallback((draft: ConnectionDraft) => {
     if (!isOnline) return { ok: false as const, message: "Подключение недоступно без сети." };
@@ -168,7 +181,7 @@ export function ConversationProvider({ client, children, idFactory = defaultIdFa
     return (state.messageIdsByChatId[state.activeChatId] ?? []).flatMap((id) => state.messagesById[id] ? [state.messagesById[id]] : []);
   }, [state.activeChatId, state.messageIdsByChatId, state.messagesById]);
 
-  const stateValue = useMemo(() => ({ state, session, isOnline, pumpStatus, activeMessages }), [activeMessages, isOnline, pumpStatus, session, state]);
+  const stateValue = useMemo(() => ({ state, session, isOnline, pumpStatus, activeMessages, activeContactLastSeen }), [activeContactLastSeen, activeMessages, isOnline, pumpStatus, session, state]);
   const actionsValue = useMemo(() => ({ applySession, createConversation, activateConversation, sendMessage, sendImage, retryMessage }), [activateConversation, applySession, createConversation, retryMessage, sendImage, sendMessage]);
 
   return <ActionsContext value={actionsValue}><StateContext value={stateValue}>{children}</StateContext></ActionsContext>;

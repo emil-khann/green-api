@@ -98,6 +98,8 @@ input:hover, textarea:hover { border-color: #92b9df; }
 .message-meta { display: block; margin-top: 3px; color: #687f94; text-align: right; font-size: 10px; }
 .message-error { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 6px; color: #9b2732; font-size: .74rem; }.message-error button { border: 0; background: transparent; color: #095ebc; font-weight: 750; }
 .scroll-anchor { height: 1px; }
+.scroll-to-bottom { position: fixed; z-index: 5; right: 18px; bottom: 82px; display: grid; place-items: center; width: 42px; height: 42px; padding: 0; color: #596d82; background: rgba(255,255,255,.96); border: 1px solid #d5e1ed; border-radius: 50%; box-shadow: 0 5px 18px rgba(20,46,72,.2); }
+.scroll-to-bottom svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .composer { width: calc(100% - 32px); display: grid; grid-template-columns: 36px minmax(0,1fr) 36px; align-items: center; gap: 4px; margin: 0 16px 8px; padding: 5px 8px; background: rgba(255,255,255,.94); border: 1px solid #dbe7f2; border-radius: 14px; }
 .composer textarea { resize: none; min-height: 36px; max-height: 150px; padding: 8px 6px; border: 0; background: transparent; font-size: 14px; }
 .send-button { width: 36px; height: 36px; padding: 0; border-radius: 50%; }
@@ -170,6 +172,7 @@ input:hover, textarea:hover { border-color: #92b9df; }
   .message-bubble { color: #f1f2f7; background: #292a31; box-shadow: 0 3px 14px rgba(0,0,0,.22); }
   .message-bubble.outgoing { color: white; background: linear-gradient(135deg, #806cff, #654fd9); }
   .message-meta { color: #9da0ac; }
+  .scroll-to-bottom { color: #d4d4dc; background: rgba(38,39,46,.97); border-color: #454750; box-shadow: 0 5px 18px rgba(0,0,0,.35); }
   .composer { background: rgba(25,26,31,.98); border-color: #292a30; }
   .attach-button { color: #c7c0ff; background: #292a31; border-color: #42444f; }
   .composer-preview { color: #f1f2f7; background: #292a31; border-color: #42444f; }

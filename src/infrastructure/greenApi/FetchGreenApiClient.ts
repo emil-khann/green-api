@@ -1,11 +1,11 @@
 import type { AppError } from "@application/errors/AppError";
 import type { NotificationEnvelope } from "@application/notifications/notificationTypes";
-import type { CheckAccountResult, GreenApiPort, PortResult, ReceivedNotification } from "@application/ports/GreenApiPort";
+import type { CheckAccountResult, ContactInfoResult, GreenApiPort, PortResult, ReceivedNotification } from "@application/ports/GreenApiPort";
 import { isDirectChatId, type ChatId } from "@domain/chatId";
 import type { AppliedSession } from "@domain/connection";
-import { checkAccountEndpoint, deleteNotificationEndpoint, receiveNotificationEndpoint, sendImageEndpoint, sendMessageEndpoint } from "@infrastructure/greenApi/endpoints";
+import { checkAccountEndpoint, deleteNotificationEndpoint, getContactInfoEndpoint, receiveNotificationEndpoint, sendImageEndpoint, sendMessageEndpoint } from "@infrastructure/greenApi/endpoints";
 import { acknowledgementError, mapFetchError, mapHttpError, protocolError } from "@infrastructure/greenApi/mapFetchError";
-import { checkAccountResponseSchema, deleteResponseSchema, notificationBodySchema, notificationEnvelopeSchema, sendResponseSchema } from "@infrastructure/greenApi/schemas";
+import { checkAccountResponseSchema, contactInfoResponseSchema, deleteResponseSchema, notificationBodySchema, notificationEnvelopeSchema, sendResponseSchema } from "@infrastructure/greenApi/schemas";
 
 const DEFAULT_RECEIVE_TIMEOUT_SECONDS = 20;
 const SUPPORTED_PHONE_PATTERN = /^(?:7\d{10}|375\d{9})$/;
@@ -74,6 +74,20 @@ export class FetchGreenApiClient implements GreenApiPort {
       if (!exist) return { ok: true, value: { exist: false, ...(fromCache === undefined ? {} : { fromCache }) } };
       if (!isDirectChatId(chatId)) return { ok: false, error: protocolError() };
       return { ok: true, value: { exist: true, chatId, ...(fromCache === undefined ? {} : { fromCache }) } };
+    } catch (error) {
+      return { ok: false, error: error instanceof ProtocolParseError ? protocolError() : (isAppError(error) ? error : mapFetchError(error)) };
+    }
+  }
+
+  async getContactInfo(session: AppliedSession, chatId: ChatId, signal?: AbortSignal): Promise<PortResult<ContactInfoResult>> {
+    try {
+      const response = await fetch(getContactInfoEndpoint(session), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chatId }), signal: signal ?? null });
+      if (!response.ok) return { ok: false, error: mapHttpError(response) };
+      const parsed = contactInfoResponseSchema.safeParse(await parseJson(response));
+      if (!parsed.success) return { ok: false, error: protocolError() };
+      const rawLastSeen = parsed.data.lastSeen;
+      const lastSeen = rawLastSeen === null || rawLastSeen === undefined ? null : Number(rawLastSeen);
+      return { ok: true, value: { lastSeen: Number.isFinite(lastSeen) && lastSeen > 0 ? lastSeen : null } };
     } catch (error) {
       return { ok: false, error: error instanceof ProtocolParseError ? protocolError() : (isAppError(error) ? error : mapFetchError(error)) };
     }

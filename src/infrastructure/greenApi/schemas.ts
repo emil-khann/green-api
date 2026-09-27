@@ -6,6 +6,9 @@ export const checkAccountResponseSchema = z.object({
   chatId: z.string(),
   fromCache: z.boolean().optional(),
 });
+export const contactInfoResponseSchema = z.object({
+  lastSeen: z.union([z.number(), z.string()]).nullable().optional(),
+});
 export const deleteResponseSchema = z.object({ result: z.boolean() });
 export const notificationEnvelopeSchema = z.object({
   receiptId: z.number().int().nonnegative(),

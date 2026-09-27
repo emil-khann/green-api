@@ -18,6 +18,10 @@ export function checkAccountEndpoint(session: AppliedSession): string {
   return `${instanceBase(session)}/checkAccount/${segment(session.apiTokenInstance)}`;
 }
 
+export function getContactInfoEndpoint(session: AppliedSession): string {
+  return `${instanceBase(session)}/getContactInfo/${segment(session.apiTokenInstance)}`;
+}
+
 export function receiveNotificationEndpoint(session: AppliedSession, receiveTimeout: number): string {
   const url = new URL(`${instanceBase(session)}/receiveNotification/${segment(session.apiTokenInstance)}`);
   url.searchParams.set("receiveTimeout", String(receiveTimeout));
