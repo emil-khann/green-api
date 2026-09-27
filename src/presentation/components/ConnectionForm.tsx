@@ -4,9 +4,9 @@ import { useConversationActions, useConversationState } from "@presentation/Conv
 export function ConnectionForm() {
   const { applySession } = useConversationActions();
   const { session, isOnline } = useConversationState();
-  const [apiUrl, setApiUrl] = useState("https://api.green-api.com");
-  const [idInstance, setIdInstance] = useState("");
-  const [apiTokenInstance, setApiTokenInstance] = useState("");
+  const [apiUrl, setApiUrl] = useState(session?.apiUrl ?? "https://api.green-api.com");
+  const [idInstance, setIdInstance] = useState(session?.idInstance ?? "");
+  const [apiTokenInstance, setApiTokenInstance] = useState(session?.apiTokenInstance ?? "");
   const [error, setError] = useState<string | null>(null);
 
   function submit(event: SyntheticEvent<HTMLFormElement>) {
