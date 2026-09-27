@@ -1,0 +1,17 @@
+import { useConversationActions, useConversationState } from "@presentation/ConversationProvider";
+
+export function ConversationList({ onSelect }: { readonly onSelect?: () => void }) {
+  const { state } = useConversationState();
+  const { activateConversation } = useConversationActions();
+  if (state.conversationOrder.length === 0) return <div className="sidebar-empty"><span aria-hidden="true">💬</span><p>Создайте первый чат</p></div>;
+  return <nav aria-label="Список чатов"><ul className="conversation-list">{state.conversationOrder.map((chatId) => {
+    const conversation = state.conversationsById[chatId];
+    if (!conversation) return null;
+    const ids = state.messageIdsByChatId[chatId] ?? [];
+    const lastMessage = ids.length > 0 ? state.messagesById[ids[ids.length - 1] ?? ""] : undefined;
+    return <li key={chatId}><button className={state.activeChatId === chatId ? "conversation-row active" : "conversation-row"} aria-current={state.activeChatId === chatId ? "page" : undefined} onClick={() => { activateConversation(chatId); onSelect?.(); }}>
+      <span className="avatar" aria-hidden="true">{conversation.label.slice(-2)}</span><span className="conversation-copy"><strong>{conversation.label}</strong><span>{lastMessage ? (lastMessage.text || (lastMessage.imageUrl ? "Изображение" : "Сообщение")) : "Нет сообщений"}</span></span>
+      {conversation.unreadCount > 0 && <span className="unread-badge" aria-label={`Непрочитанных: ${String(conversation.unreadCount)}`}>{conversation.unreadCount}</span>}
+    </button></li>;
+  })}</ul></nav>;
+}
