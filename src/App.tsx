@@ -1,7 +1,7 @@
 import { FetchGreenApiClient } from "@infrastructure/greenApi/FetchGreenApiClient";
 import type { GreenApiPort } from "@application/ports/GreenApiPort";
 import { useState } from "react";
-import { ConversationProvider, useConversationState } from "@presentation/ConversationProvider";
+import { ConversationProvider, useConversationActions, useConversationState } from "@presentation/ConversationProvider";
 import { ChatHeader } from "@presentation/components/ChatHeader";
 import { ConnectionForm } from "@presentation/components/ConnectionForm";
 import { ConversationList } from "@presentation/components/ConversationList";
@@ -14,6 +14,7 @@ const productionClient = new FetchGreenApiClient();
 
 function ChatApplication() {
   const { session, state } = useConversationState();
+  const { closeConversation } = useConversationActions();
   const [mobileListVisible, setMobileListVisible] = useState(true);
   const [sidebarView, setSidebarView] = useState<"chats" | "new" | "contacts" | "settings">("chats");
   const [searchQuery, setSearchQuery] = useState("");
@@ -41,7 +42,9 @@ function ChatApplication() {
         <div className="sidebar-list"><ConversationList query={searchQuery} unreadOnly={sidebarView === "new"} onSelect={() => { setMobileListVisible(false); }} /></div>
       </>}
     </aside>
-    <section className="chat-pane"><ChatHeader onBack={() => { setMobileListVisible(true); }} /><StatusBanner /><MessageList /><MessageComposer /></section>
+    <section className={`chat-pane ${state.activeChatId ? "" : "chat-pane-empty"}`}>
+      {state.activeChatId ? <><ChatHeader onBack={() => { closeConversation(); setMobileListVisible(true); }} /><StatusBanner /><MessageList /><MessageComposer /></> : <div className="message-scroll" aria-label="Чат не выбран" />}
+    </section>
     <span className="sr-only" aria-live="polite">{state.activeChatId ? "Чат выбран" : "Чат не выбран"}</span>
     {newChatOpen && <div className="modal-backdrop" role="presentation" onKeyDown={(event) => { if (event.key === "Escape") setNewChatOpen(false); }} onMouseDown={(event) => { if (event.target === event.currentTarget) setNewChatOpen(false); }}><section className="new-chat-modal" role="dialog" aria-modal="true" aria-labelledby="new-chat-title"><button className="modal-close" aria-label="Закрыть" onClick={() => setNewChatOpen(false)}>×</button><h2 id="new-chat-title">Новый чат</h2><p>Введите номер телефона собеседника в международном формате.</p><NewChatForm onCreated={() => setNewChatOpen(false)} /></section></div>}
   </main>;

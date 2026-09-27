@@ -17,6 +17,7 @@ interface ConversationActions {
   applySession: (draft: ConnectionDraft) => { ok: true } | { ok: false; message: string };
   createConversation: (phone: string) => Promise<{ ok: true } | { ok: false; message: string }>;
   activateConversation: (chatId: ChatId) => void;
+  closeConversation: () => void;
   sendMessage: (text: string) => Promise<boolean>;
   sendImage: (file: File, caption?: string) => Promise<boolean>;
   retryMessage: (localId: string) => Promise<boolean>;
@@ -122,6 +123,7 @@ export function ConversationProvider({ client, children, idFactory = defaultIdFa
   }, [abortCheckAccount, client, isOnline, session]);
 
   const activateConversation = useCallback((chatId: ChatId) => { dispatch({ type: "conversation-activated", chatId }); }, []);
+  const closeConversation = useCallback(() => { dispatch({ type: "conversation-closed" }); }, []);
 
   const executeSend = useCallback(async (chatId: ChatId, localId: string, attemptId: string, text: string) => {
     const capturedSession = session;
@@ -182,7 +184,7 @@ export function ConversationProvider({ client, children, idFactory = defaultIdFa
   }, [state.activeChatId, state.messageIdsByChatId, state.messagesById]);
 
   const stateValue = useMemo(() => ({ state, session, isOnline, pumpStatus, activeMessages, activeContactLastSeen }), [activeContactLastSeen, activeMessages, isOnline, pumpStatus, session, state]);
-  const actionsValue = useMemo(() => ({ applySession, createConversation, activateConversation, sendMessage, sendImage, retryMessage }), [activateConversation, applySession, createConversation, retryMessage, sendImage, sendMessage]);
+  const actionsValue = useMemo(() => ({ applySession, createConversation, activateConversation, closeConversation, sendMessage, sendImage, retryMessage }), [activateConversation, applySession, closeConversation, createConversation, retryMessage, sendImage, sendMessage]);
 
   return <ActionsContext value={actionsValue}><StateContext value={stateValue}>{children}</StateContext></ActionsContext>;
 }

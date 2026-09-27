@@ -8,6 +8,7 @@ export type ConversationAction =
   | { readonly type: "session-applied"; readonly sessionId: string }
   | { readonly type: "conversation-created"; readonly chatId: ChatId; readonly label: string }
   | { readonly type: "conversation-activated"; readonly chatId: ChatId }
+  | { readonly type: "conversation-closed" }
   | { readonly type: "notification-classified"; readonly notification: ClassifiedNotification; readonly localId?: string }
   | { readonly type: "outgoing-created"; readonly chatId: ChatId; readonly localId: string; readonly attemptId: string; readonly text: string; readonly createdAt: number; readonly imageUrl?: string; readonly imageFile?: File; readonly fileName?: string; readonly mimeType?: string }
   | { readonly type: "outgoing-sent"; readonly chatId: ChatId; readonly localId: string; readonly attemptId: string; readonly idMessage: string }
@@ -126,6 +127,8 @@ export function conversationReducer(state: ConversationState, action: Conversati
       return addConversation(state, action.chatId, action.label, true);
     case "conversation-activated":
       return activateConversation(state, action.chatId);
+    case "conversation-closed":
+      return state.activeChatId === null ? state : { ...state, activeChatId: null };
     case "notification-classified": {
       if (action.notification.kind === "direct-text" || action.notification.kind === "direct-image") {
         return recordIncoming(state, action.notification, action.localId ?? `${action.notification.chatId}:${action.notification.idMessage}`);
