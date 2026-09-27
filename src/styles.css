@@ -69,9 +69,8 @@ input:hover, textarea:hover { border-color: #92b9df; }
 .message-meta { display: block; margin-top: 5px; color: #687f94; text-align: right; font-size: .68rem; }
 .message-error { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 6px; color: #9b2732; font-size: .74rem; }.message-error button { border: 0; background: transparent; color: #095ebc; font-weight: 750; }
 .scroll-anchor { height: 1px; }
-.composer { display: grid; grid-template-columns: 46px minmax(0,1fr) auto 46px; align-items: end; gap: 8px; padding: 14px 18px; background: rgba(255,255,255,.94); border-top: 1px solid #dbe7f2; }
+.composer { display: grid; grid-template-columns: 46px minmax(0,1fr) 46px; align-items: end; gap: 8px; padding: 14px 18px; background: rgba(255,255,255,.94); border-top: 1px solid #dbe7f2; }
 .composer textarea { resize: none; min-height: 46px; max-height: 150px; }
-.counter { align-self: center; color: #71869a; font-size: .72rem; }.counter.invalid { color: #ac2632; font-weight: 700; }
 .send-button { width: 46px; height: 46px; padding-left: 4px; }
 .attach-button { width: 46px; height: 46px; border: 1px solid #c8daec; border-radius: 13px; color: #285b8c; background: #f2f8fe; font-size: 1.15rem; }
 .composer-error { grid-column: 1 / -1; margin: 0; color: #a02b35; font-size: .78rem; }
@@ -87,7 +86,6 @@ input:hover, textarea:hover { border-color: #92b9df; }
   .message-list { padding: 14px; }
   .message-bubble { max-width: 86%; }
   .composer { padding: 10px; grid-template-columns: 46px minmax(0,1fr) 46px; }
-  .composer .counter { grid-row: 2; grid-column: 2; }
   .send-button { grid-column: 3; grid-row: 1; }
   .connection-page { padding: 12px; }.connection-form { padding: 24px 20px; border-radius: 22px; }
 }
