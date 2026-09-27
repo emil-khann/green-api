@@ -18,12 +18,13 @@ function ChatApplication() {
   if (!session) return <main className="connection-page"><ConnectionForm /></main>;
   return <main className={mobileListVisible ? "app-shell show-list" : "app-shell show-chat"}>
     <nav className="product-nav" aria-label="Разделы MAX Chat">
-      <div className="product-nav-brand" aria-label="MAX Chat">M</div>
-      <div className="product-nav-item active"><span aria-hidden="true">●</span><small>Чаты</small></div>
-      <div className="product-nav-item"><span aria-hidden="true">◼</span><small>Новые</small></div>
-      <div className="product-nav-item"><span aria-hidden="true">♟</span><small>Контакты</small></div>
-      <div className="product-nav-item"><span aria-hidden="true">●</span><small>Звонки</small></div>
-      <div className="product-nav-item settings"><span aria-hidden="true">⚙</span><small>Настройки</small></div>
+      <div className="product-nav-item active"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.5h14a2.5 2.5 0 0 1 2.5 2.5v6a2.5 2.5 0 0 1-2.5 2.5h-7l-4.5 3v-3H5A2.5 2.5 0 0 1 2.5 14V8A2.5 2.5 0 0 1 5 5.5Z"/><circle cx="8" cy="11" r="1"/><circle cx="12" cy="11" r="1"/><circle cx="16" cy="11" r="1"/></svg><small>Все</small></div>
+      <div className="product-nav-item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 8.5h17v10a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-10Z"/><path d="M6 8.5V6a2 2 0 0 1 2-2h3l2 2h5a2 2 0 0 1 2 2v.5"/></svg><small>Новые</small></div>
+      <div className="product-nav-item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 8.5h17v10a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-10Z"/><path d="M6 8.5V6a2 2 0 0 1 2-2h3l2 2h5a2 2 0 0 1 2 2v.5"/></svg><small>Каналы</small></div>
+      <div className="product-nav-divider" />
+      <div className="product-nav-item"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3.5 19c.4-4 2.2-6 5.5-6s5.1 2 5.5 6M14 14c3.8-.8 6.1 1 6.5 5"/></svg><small>Контакты</small></div>
+      <div className="product-nav-item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3.5 10 8 8.2 10c1.2 2.8 3.1 4.7 5.8 5.8L16 14l4.5 3c-.7 2.5-2.2 3.7-4.5 3.5C9.7 19.8 4.2 14.3 3.5 8 3.3 5.7 4.5 4.2 7 3.5Z"/></svg><small>Звонки</small></div>
+      <div className="product-nav-item settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg><small>Настройки</small></div>
     </nav>
     <aside className="sidebar">
       <div className="sidebar-top"><div className="brand compact"><strong>Чаты</strong></div><NewChatForm /></div>

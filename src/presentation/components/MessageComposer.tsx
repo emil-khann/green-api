@@ -54,10 +54,10 @@ export function MessageComposer() {
       <button type="button" aria-label="Убрать изображение" onClick={() => setSelectedImage(null)}>×</button>
     </div>}
     <input ref={fileInputRef} className="sr-only" type="file" accept="image/*" aria-label="Выбрать изображение" onChange={onImageSelected} disabled={composerDisabled || submitting} />
-    <button type="button" className="attach-button" aria-label="Прикрепить изображение" disabled={composerDisabled || submitting} onClick={() => fileInputRef.current?.click()}>📎</button>
+    <button type="button" className="attach-button" aria-label="Прикрепить изображение" disabled={composerDisabled || submitting} onClick={() => fileInputRef.current?.click()}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8.5 12.5 5.8-5.8a3.2 3.2 0 0 1 4.5 4.5l-7.5 7.5a5 5 0 0 1-7.1-7.1l7.2-7.2"/></svg></button>
     <label htmlFor="message-text" className="sr-only">Сообщение</label>
     <textarea ref={textareaRef} id="message-text" rows={1} placeholder={!isOnline ? "Нет сети" : "Сообщение"} value={text} onChange={(event) => { setText(event.target.value); }} onKeyDown={onKeyDown} disabled={!session || !state.activeChatId || !isOnline} aria-invalid={count > MAX_MESSAGE_CODE_POINTS} />
-    <button className="send-button" aria-label={selectedImage ? "Отправить изображение" : "Отправить сообщение"} disabled={disabled}>➤</button>
+    <button className="send-button" aria-label={selectedImage ? "Отправить изображение" : "Отправить сообщение"} disabled={disabled}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 4 16 8-16 8 2-7 9-1-9-1-2-7Z"/></svg></button>
     {imageError && <p className="composer-error" role="alert">{imageError}</p>}
   </form>;
 }
