@@ -23,11 +23,13 @@ input:hover, textarea:hover { border-color: #92b9df; }
 .primary-button { width: 100%; margin-top: 22px; padding: 13px; border: 0; border-radius: 14px; color: white; background: #176fda; font-weight: 750; box-shadow: 0 8px 18px rgba(23,111,218,.25); }
 .privacy-note { text-align: center; margin-top: 14px; }
 .app-shell { width: min(1180px, calc(100% - 32px)); height: min(820px, calc(100vh - 32px)); min-height: 580px; margin: 16px auto; display: grid; grid-template-columns: 320px minmax(0,1fr); overflow: hidden; background: white; border: 1px solid #d5e3f2; border-radius: 24px; box-shadow: 0 22px 70px rgba(37, 79, 123, .18); }
-.sidebar { min-width: 0; background: #f7fbff; border-right: 1px solid #dae7f4; overflow-y: auto; }
+.sidebar { min-width: 0; min-height: 0; display: grid; grid-template-rows: auto minmax(0,1fr) auto; background: #f7fbff; border-right: 1px solid #dae7f4; overflow: hidden; }
 .sidebar-top { position: sticky; top: 0; z-index: 2; padding: 18px; background: rgba(247,251,255,.96); backdrop-filter: blur(10px); border-bottom: 1px solid #e0ebf5; }
+.sidebar-list { min-height: 0; overflow-y: auto; }
 .new-chat-form { position: relative; display: grid; grid-template-columns: 1fr 42px; gap: 8px; margin-top: 18px; }
 .new-chat-form .form-error { grid-column: 1 / -1; }
 .connection-settings { margin-top: 12px; color: #526b83; font-size: .8rem; }
+.sidebar-settings { margin: 0; padding: 12px 18px 16px; background: rgba(247,251,255,.98); border-top: 1px solid #e0ebf5; }
 .connection-settings summary { cursor: pointer; font-weight: 700; }
 .connection-settings .connection-form { width: 100%; margin-top: 10px; padding: 14px; border-radius: 16px; box-shadow: none; }
 .connection-settings .brand { display: none; }
@@ -105,6 +107,7 @@ input:hover, textarea:hover { border-color: #92b9df; }
   .sidebar { background: #1d1e24; border-color: #343640; }
   .sidebar-top { background: rgba(29,30,36,.96); border-color: #343640; }
   .connection-settings { color: #aeb1bd; }
+  .sidebar-settings { background: rgba(29,30,36,.98); border-color: #343640; }
   .connection-settings .connection-form { background: #24252c; }
   .conversation-row { color: #f1f2f7; }
   .conversation-row:hover { background: #292a32; }
