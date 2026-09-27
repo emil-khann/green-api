@@ -17,8 +17,16 @@ function ChatApplication() {
   const [mobileListVisible, setMobileListVisible] = useState(true);
   if (!session) return <main className="connection-page"><ConnectionForm /></main>;
   return <main className={mobileListVisible ? "app-shell show-list" : "app-shell show-chat"}>
+    <nav className="product-nav" aria-label="Разделы MAX Chat">
+      <div className="product-nav-brand" aria-label="MAX Chat">M</div>
+      <div className="product-nav-item active"><span aria-hidden="true">●</span><small>Чаты</small></div>
+      <div className="product-nav-item"><span aria-hidden="true">◼</span><small>Новые</small></div>
+      <div className="product-nav-item"><span aria-hidden="true">♟</span><small>Контакты</small></div>
+      <div className="product-nav-item"><span aria-hidden="true">●</span><small>Звонки</small></div>
+      <div className="product-nav-item settings"><span aria-hidden="true">⚙</span><small>Настройки</small></div>
+    </nav>
     <aside className="sidebar">
-      <div className="sidebar-top"><div className="brand compact"><span className="brand-mark" aria-hidden="true">M</span><strong>MAX Chat</strong></div><NewChatForm /></div>
+      <div className="sidebar-top"><div className="brand compact"><strong>Чаты</strong></div><NewChatForm /></div>
       <div className="sidebar-list"><ConversationList onSelect={() => { setMobileListVisible(false); }} /></div>
       <details className="connection-settings sidebar-settings"><summary>Настроить подключение</summary><ConnectionForm /></details>
     </aside>

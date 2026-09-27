@@ -6,6 +6,7 @@ export function ChatHeader({ onBack }: { readonly onBack?: () => void }) {
   return <header className="chat-header">
     {onBack && <button className="back-button" onClick={onBack} aria-label="Вернуться к списку чатов">←</button>}
     <span className="avatar" aria-hidden="true">{conversation?.label.slice(-2) ?? "—"}</span>
-    <div><h2>{conversation?.label ?? "Выберите чат"}</h2><span>{isOnline ? "Сеть доступна" : "Нет сети"}</span></div>
+    <div className="chat-heading"><h2>{conversation?.label ?? "Выберите чат"}</h2><span>{isOnline ? "Сеть доступна" : "Нет сети"}</span></div>
+    {conversation && <div className="chat-tools" aria-hidden="true"><span>⌕</span><span>⋮</span></div>}
   </header>;
 }
