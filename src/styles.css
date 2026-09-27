@@ -45,7 +45,8 @@ input:hover, textarea:hover { border-color: #92b9df; }
 .settings-panel .connection-form { width: 100%; padding: 18px; border-radius: 16px; box-shadow: none; }
 .settings-panel .connection-form .brand { display: none; }
 .settings-panel .connection-form label:first-of-type { margin-top: 0; }
-.new-chat-button { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; color: white; background: #2d8cff; border: 0; border-radius: 50%; font-size: 24px; font-weight: 300; line-height: 1; }
+.new-chat-button { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; color: white; background: #2d8cff; border: 0; border-radius: 50%; }
+.new-chat-button svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 .chat-search { position: relative; display: block; margin-top: 17px; }
 .chat-search svg { position: absolute; z-index: 1; top: 50%; left: 12px; width: 18px; height: 18px; color: #7e8490; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; transform: translateY(-50%); }
 .chat-search input { height: 38px; padding: 8px 13px 8px 38px; border: 0; border-radius: 10px; font-size: 14px; }

@@ -36,7 +36,7 @@ function ChatApplication() {
     <aside className="sidebar">
       {sidebarView === "settings" ? <div className="settings-panel"><h1>Настройки</h1><h2>Подключение</h2><ConnectionForm /></div> : <>
         <div className="sidebar-top">
-          <div className="brand compact"><strong>{sidebarView === "contacts" ? "Контакты" : sidebarView === "new" ? "Новые" : "Чаты"}</strong><button className="new-chat-button" aria-label="Добавить новый чат" onClick={() => setNewChatOpen(true)}>+</button></div>
+          <div className="brand compact"><strong>{sidebarView === "contacts" ? "Контакты" : sidebarView === "new" ? "Новые" : "Чаты"}</strong><button className="new-chat-button" aria-label="Добавить новый чат" onClick={() => setNewChatOpen(true)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg></button></div>
           <label className="chat-search"><span className="sr-only">Поиск чатов</span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Найти" /></label>
         </div>
         <div className="sidebar-list"><ConversationList query={searchQuery} unreadOnly={sidebarView === "new"} onSelect={() => { setMobileListVisible(false); }} /></div>
