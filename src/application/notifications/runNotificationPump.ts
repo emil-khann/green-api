@@ -55,9 +55,15 @@ async function waitForRetry(options: NotificationPumpOptions, operation: PumpOpe
 }
 
 function recordIgnored(classified: Exclude<ClassifiedNotification, { readonly kind: "direct-text" | "direct-image" }>, counts: { unsupportedSender: number; unsupportedType: number; malformed: number }): IgnoredNotificationSummary {
-  if (classified.kind === "malformed") counts.malformed += 1;
-  else if (classified.reason === "unsupported-sender") counts.unsupportedSender += 1;
-  else counts.unsupportedType += 1;
+  switch (classified.kind) {
+    case "malformed": counts.malformed += 1; break;
+    case "ignored":
+      switch (classified.reason) {
+        case "unsupported-sender": counts.unsupportedSender += 1; break;
+        case "unsupported-type": counts.unsupportedType += 1; break;
+      }
+      break;
+  }
   return { total: counts.unsupportedSender + counts.unsupportedType + counts.malformed, ...counts };
 }
 

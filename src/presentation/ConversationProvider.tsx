@@ -92,7 +92,7 @@ export function ConversationProvider({ client, children, idFactory = defaultIdFa
       setActiveContactLastSeen(result.ok ? result.value.lastSeen : null);
       if (result.ok && (result.value.name || result.value.avatarUrl)) dispatch({ type: "contact-info-loaded", chatId, ...(result.value.name ? { name: result.value.name } : {}), ...(result.value.avatarUrl ? { avatarUrl: result.value.avatarUrl } : {}) });
     });
-    return () => controller.abort();
+    return () => { controller.abort(); };
   }, [client, isOnline, session, state.activeChatId]);
 
   const applySession = useCallback((draft: ConnectionDraft) => {

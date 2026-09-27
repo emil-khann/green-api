@@ -8,7 +8,14 @@ import { acknowledgementError, mapFetchError, mapHttpError, protocolError } from
 import { checkAccountResponseSchema, contactInfoResponseSchema, deleteResponseSchema, notificationBodySchema, notificationEnvelopeSchema, sendResponseSchema } from "@infrastructure/greenApi/schemas";
 
 const DEFAULT_RECEIVE_TIMEOUT_SECONDS = 20;
+const MIN_RECEIVE_TIMEOUT_SECONDS = 5;
+const MAX_RECEIVE_TIMEOUT_SECONDS = 60;
 const SUPPORTED_PHONE_PATTERN = /^(?:7\d{10}|375\d{9})$/;
+
+enum ApiMessageType {
+  Text = "textMessage",
+  Image = "imageMessage",
+}
 
 class ProtocolParseError extends Error {}
 
@@ -26,6 +33,20 @@ function isAppError(value: unknown): value is AppError {
   return typeof value === "object" && value !== null && "kind" in value && "safeMessage" in value && "retryable" in value;
 }
 
+function mapClientError(error: unknown): AppError {
+  if (error instanceof ProtocolParseError) return protocolError();
+  if (isAppError(error)) return error;
+  return mapFetchError(error);
+}
+
+function getNotificationMessageType(typeMessage: string | undefined): string {
+  switch (typeMessage) {
+    case ApiMessageType.Text: return "text";
+    case ApiMessageType.Image: return "image";
+    default: return typeMessage ?? "unsupported";
+  }
+}
+
 function toSafeNotification(body: unknown): NotificationEnvelope {
   const parsed = notificationBodySchema.safeParse(body);
   if (!parsed.success) return { messageType: "malformed" };
@@ -33,8 +54,8 @@ function toSafeNotification(body: unknown): NotificationEnvelope {
   if (value.typeWebhook !== "incomingMessageReceived") return { messageType: "unsupported" };
   const messageData = value.messageData;
   const typeMessage = messageData?.typeMessage;
-  const isText = typeMessage === "textMessage";
-  const isImage = typeMessage === "imageMessage";
+  const isText = typeMessage === ApiMessageType.Text;
+  const isImage = typeMessage === ApiMessageType.Image;
   const text = isText ? (messageData?.textMessageData?.textMessage ?? messageData?.textMessage) : undefined;
   const file = isImage ? messageData?.fileMessageData : undefined;
   const imageUrl = file?.downloadUrlJpeg ?? file?.downloadUrl;
@@ -43,7 +64,7 @@ function toSafeNotification(body: unknown): NotificationEnvelope {
     ...(value.senderData?.chatId === undefined ? {} : { senderId: value.senderData.chatId }),
     ...(value.senderData?.chatType === undefined ? {} : { senderType: value.senderData.chatType }),
     ...(value.senderData?.chatName?.trim() ? { senderName: value.senderData.chatName.trim() } : {}),
-    messageType: isText ? "text" : isImage ? "image" : (typeMessage ?? "unsupported"),
+    messageType: getNotificationMessageType(typeMessage),
     ...(isText && text !== undefined ? { text } : {}),
     ...(isImage && file?.caption !== undefined ? { text: file.caption } : {}),
     ...(isImage && imageUrl ? { imageUrl } : {}),
@@ -57,7 +78,7 @@ export class FetchGreenApiClient implements GreenApiPort {
   readonly #receiveTimeout: number;
 
   constructor(receiveTimeout = DEFAULT_RECEIVE_TIMEOUT_SECONDS) {
-    if (!Number.isInteger(receiveTimeout) || receiveTimeout < 5 || receiveTimeout > 60) throw new RangeError("receiveTimeout must be an integer from 5 to 60 seconds");
+    if (!Number.isInteger(receiveTimeout) || receiveTimeout < MIN_RECEIVE_TIMEOUT_SECONDS || receiveTimeout > MAX_RECEIVE_TIMEOUT_SECONDS) throw new RangeError(`receiveTimeout must be an integer from ${String(MIN_RECEIVE_TIMEOUT_SECONDS)} to ${String(MAX_RECEIVE_TIMEOUT_SECONDS)} seconds`);
     this.#receiveTimeout = receiveTimeout;
   }
 
@@ -75,7 +96,7 @@ export class FetchGreenApiClient implements GreenApiPort {
       if (!isDirectChatId(chatId)) return { ok: false, error: protocolError() };
       return { ok: true, value: { exist: true, chatId, ...(fromCache === undefined ? {} : { fromCache }) } };
     } catch (error) {
-      return { ok: false, error: error instanceof ProtocolParseError ? protocolError() : (isAppError(error) ? error : mapFetchError(error)) };
+      return { ok: false, error: mapClientError(error) };
     }
   }
 
@@ -91,7 +112,7 @@ export class FetchGreenApiClient implements GreenApiPort {
       const avatarUrl = parsed.data.avatar?.trim() || undefined;
       return { ok: true, value: { lastSeen: typeof lastSeen === "number" && Number.isFinite(lastSeen) && lastSeen > 0 ? lastSeen : null, ...(name ? { name } : {}), ...(avatarUrl ? { avatarUrl } : {}) } };
     } catch (error) {
-      return { ok: false, error: error instanceof ProtocolParseError ? protocolError() : (isAppError(error) ? error : mapFetchError(error)) };
+      return { ok: false, error: mapClientError(error) };
     }
   }
 
@@ -102,7 +123,7 @@ export class FetchGreenApiClient implements GreenApiPort {
       const parsed = sendResponseSchema.safeParse(await parseJson(response));
       return parsed.success ? { ok: true, value: { idMessage: parsed.data.idMessage } } : { ok: false, error: protocolError() };
     } catch (error) {
-      return { ok: false, error: error instanceof ProtocolParseError ? protocolError() : (isAppError(error) ? error : mapFetchError(error)) };
+      return { ok: false, error: mapClientError(error) };
     }
   }
 
@@ -118,7 +139,7 @@ export class FetchGreenApiClient implements GreenApiPort {
       const parsed = sendResponseSchema.safeParse(await parseJson(response));
       return parsed.success ? { ok: true, value: { idMessage: parsed.data.idMessage } } : { ok: false, error: protocolError() };
     } catch (error) {
-      return { ok: false, error: error instanceof ProtocolParseError ? protocolError() : (isAppError(error) ? error : mapFetchError(error)) };
+      return { ok: false, error: mapClientError(error) };
     }
   }
 
@@ -134,7 +155,7 @@ export class FetchGreenApiClient implements GreenApiPort {
       if (!envelope.success) return { ok: false, error: protocolError() };
       return { ok: true, value: { receiptId: envelope.data.receiptId, notification: toSafeNotification(envelope.data.body) } };
     } catch (error) {
-      return { ok: false, error: error instanceof ProtocolParseError ? protocolError() : (isAppError(error) ? error : mapFetchError(error)) };
+      return { ok: false, error: mapClientError(error) };
     }
   }
 

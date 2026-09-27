@@ -6,13 +6,14 @@ export function classifyNotification(notification: NotificationEnvelope): Classi
     return { kind: "ignored", reason: "unsupported-sender" };
   }
   if (!notification.idMessage?.trim()) return { kind: "malformed", reason: "missing-message-id" };
-  if (notification.messageType === "text") {
-    if (typeof notification.text !== "string") return { kind: "malformed", reason: "missing-text" };
-    return { kind: "direct-text", idMessage: notification.idMessage, chatId: notification.senderId, text: notification.text, receivedAt: notification.receivedAt ?? Date.now(), ...(notification.senderName ? { senderName: notification.senderName } : {}) };
+  switch (notification.messageType) {
+    case "text":
+      if (typeof notification.text !== "string") return { kind: "malformed", reason: "missing-text" };
+      return { kind: "direct-text", idMessage: notification.idMessage, chatId: notification.senderId, text: notification.text, receivedAt: notification.receivedAt ?? Date.now(), ...(notification.senderName ? { senderName: notification.senderName } : {}) };
+    case "image":
+      if (!notification.imageUrl) return { kind: "malformed", reason: "missing-media-url" };
+      return { kind: "direct-image", idMessage: notification.idMessage, chatId: notification.senderId, imageUrl: notification.imageUrl, text: notification.text ?? "", receivedAt: notification.receivedAt ?? Date.now(), ...(notification.senderName ? { senderName: notification.senderName } : {}), ...(notification.fileName ? { fileName: notification.fileName } : {}), ...(notification.mimeType ? { mimeType: notification.mimeType } : {}) };
+    default:
+      return { kind: "ignored", reason: "unsupported-type" };
   }
-  if (notification.messageType === "image") {
-    if (!notification.imageUrl) return { kind: "malformed", reason: "missing-media-url" };
-    return { kind: "direct-image", idMessage: notification.idMessage, chatId: notification.senderId, imageUrl: notification.imageUrl, text: notification.text ?? "", receivedAt: notification.receivedAt ?? Date.now(), ...(notification.senderName ? { senderName: notification.senderName } : {}), ...(notification.fileName ? { fileName: notification.fileName } : {}), ...(notification.mimeType ? { mimeType: notification.mimeType } : {}) };
-  }
-  return { kind: "ignored", reason: "unsupported-type" };
 }

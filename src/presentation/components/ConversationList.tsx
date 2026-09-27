@@ -1,4 +1,11 @@
 import { useConversationActions, useConversationState } from "@presentation/ConversationProvider";
+import type { ConversationMessage } from "@application/conversations/conversationState";
+
+function getLastMessageLabel(message: ConversationMessage | undefined): string {
+  if (!message) return "Нет сообщений";
+  if (message.text) return message.text;
+  return message.imageUrl ? "Изображение" : "Сообщение";
+}
 
 export function ConversationList({ onSelect, query = "", unreadOnly = false }: { readonly onSelect?: () => void; readonly query?: string; readonly unreadOnly?: boolean }) {
   const { state } = useConversationState();
@@ -17,7 +24,7 @@ export function ConversationList({ onSelect, query = "", unreadOnly = false }: {
     const ids = state.messageIdsByChatId[chatId] ?? [];
     const lastMessage = ids.length > 0 ? state.messagesById[ids[ids.length - 1] ?? ""] : undefined;
     return <li key={chatId}><button className={state.activeChatId === chatId ? "conversation-row active" : "conversation-row"} aria-current={state.activeChatId === chatId ? "page" : undefined} onClick={() => { activateConversation(chatId); onSelect?.(); }}>
-      <span className="avatar" aria-hidden="true">{conversation.avatarUrl ? <img src={conversation.avatarUrl} alt="" loading="lazy" /> : conversation.label.slice(-2)}</span><span className="conversation-copy"><strong>{conversation.label}</strong><span>{lastMessage ? (lastMessage.text || (lastMessage.imageUrl ? "Изображение" : "Сообщение")) : "Нет сообщений"}</span></span>
+      <span className="avatar" aria-hidden="true">{conversation.avatarUrl ? <img src={conversation.avatarUrl} alt="" loading="lazy" /> : conversation.label.slice(-2)}</span><span className="conversation-copy"><strong>{conversation.label}</strong><span>{getLastMessageLabel(lastMessage)}</span></span>
       {conversation.unreadCount > 0 && <span className="unread-badge" aria-label={`Непрочитанных: ${String(conversation.unreadCount)}`}>{conversation.unreadCount}</span>}
     </button></li>;
   })}</ul></nav>;
