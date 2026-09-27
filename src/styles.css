@@ -29,6 +29,9 @@ input:hover, textarea:hover { border-color: #92b9df; }
 .product-nav-item:disabled { cursor: default; opacity: .38; }
 .product-nav-item svg { width: 24px; height: 24px; overflow: visible; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .product-nav-item svg circle, .product-nav-item svg path { vector-effect: non-scaling-stroke; }
+.product-nav-icon { position: relative; display: grid; place-items: center; width: 28px; height: 24px; }
+.product-nav-badge { position: absolute; top: -8px; right: -10px; display: grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; color: white; background: #7a7d84; border: 2px solid #f1f7fd; border-radius: 99px; font-size: 11px; font-weight: 700; line-height: 1; }
+.product-nav-item.active .product-nav-badge { background: #1688f8; }
 .product-nav-item small { font-size: 10px; line-height: 12px; }
 .product-nav-item.active { color: #6b55e1; }
 .product-nav-item.settings { margin-top: auto; }
@@ -149,6 +152,7 @@ input:hover, textarea:hover { border-color: #92b9df; }
   .product-nav { background: #15161a; border-color: #2b2d34; }
   .product-nav-item { color: #777982; }
   .product-nav-item.active { color: #ececf1; }
+  .product-nav-badge { border-color: #15161a; }
   .product-nav-divider { background: #2b2d34; }
   .sidebar { background: #17181c; border-color: #2c2d33; }
   .sidebar-top { background: rgba(23,24,28,.97); border-color: #2c2d33; }

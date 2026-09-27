@@ -18,6 +18,7 @@ function ChatApplication() {
   const [sidebarView, setSidebarView] = useState<"chats" | "new" | "contacts" | "settings">("chats");
   const [searchQuery, setSearchQuery] = useState("");
   const [newChatOpen, setNewChatOpen] = useState(false);
+  const unreadConversationCount = state.conversationOrder.reduce((total, chatId) => total + (state.conversationsById[chatId]?.unreadCount ? 1 : 0), 0);
   function openSidebar(view: typeof sidebarView) {
     setSidebarView(view);
     setMobileListVisible(true);
@@ -25,8 +26,8 @@ function ChatApplication() {
   if (!session) return <main className="connection-page"><ConnectionForm /></main>;
   return <main className={mobileListVisible ? "app-shell show-list" : "app-shell show-chat"}>
     <nav className="product-nav" aria-label="Разделы MAX Chat">
-      <button className={`product-nav-item ${sidebarView === "chats" ? "active" : ""}`} onClick={() => openSidebar("chats")}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h14a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3h-7l-5 3v-3H5a3 3 0 0 1-3-3v-7a3 3 0 0 1 3-3Z"/><path d="M7.5 11h.01M12 11h.01M16.5 11h.01"/></svg><small>Все</small></button>
-      <button className={`product-nav-item ${sidebarView === "new" ? "active" : ""}`} onClick={() => openSidebar("new")}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.5h18v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-11Z"/><path d="M5.5 7.5V5.7a2.2 2.2 0 0 1 2.2-2.2h2.8l2.2 2.2H19a2 2 0 0 1 2 1.8"/></svg><small>Новые</small></button>
+      <button className={`product-nav-item ${sidebarView === "chats" ? "active" : ""}`} onClick={() => openSidebar("chats")}><span className="product-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h14a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3h-7l-5 3v-3H5a3 3 0 0 1-3-3v-7a3 3 0 0 1 3-3Z"/><path d="M7.5 11h.01M12 11h.01M16.5 11h.01"/></svg>{unreadConversationCount > 0 && <span className="product-nav-badge" aria-label={`Непрочитанных чатов: ${String(unreadConversationCount)}`}>{unreadConversationCount > 99 ? "99+" : unreadConversationCount}</span>}</span><small>Все</small></button>
+      <button className={`product-nav-item ${sidebarView === "new" ? "active" : ""}`} onClick={() => openSidebar("new")}><span className="product-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.5h18v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-11Z"/><path d="M5.5 7.5V5.7a2.2 2.2 0 0 1 2.2-2.2h2.8l2.2 2.2H19a2 2 0 0 1 2 1.8"/></svg>{unreadConversationCount > 0 && <span className="product-nav-badge" aria-hidden="true">{unreadConversationCount > 99 ? "99+" : unreadConversationCount}</span>}</span><small>Новые</small></button>
       <div className="product-nav-divider" />
       <button className={`product-nav-item ${sidebarView === "contacts" ? "active" : ""}`} onClick={() => openSidebar("contacts")}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><circle cx="17.5" cy="9" r="2.5"/><path d="M2.5 20c.3-4.3 2.5-6.5 6.5-6.5s6.2 2.2 6.5 6.5M15 14.5c3.8-.6 6 1.3 6.5 5.5"/></svg><small>Контакты</small></button>
       <button className={`product-nav-item settings ${sidebarView === "settings" ? "active" : ""}`} onClick={() => openSidebar("settings")}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.2 13.5a7.8 7.8 0 0 0 0-3l2-1.6-2-3.4-2.5 1a8 8 0 0 0-2.6-1.5L13.7 2h-4l-.4 3a8 8 0 0 0-2.6 1.5l-2.5-1-2 3.4 2 1.6a7.8 7.8 0 0 0 0 3l-2 1.6 2 3.4 2.5-1A8 8 0 0 0 9.3 19l.4 3h4l.4-3a8 8 0 0 0 2.6-1.5l2.5 1 2-3.4-2-1.6Z"/></svg><small>Настройки</small></button>
