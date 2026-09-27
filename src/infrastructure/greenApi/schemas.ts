@@ -8,6 +8,9 @@ export const checkAccountResponseSchema = z.object({
 });
 export const contactInfoResponseSchema = z.object({
   lastSeen: z.union([z.number(), z.string()]).nullable().optional(),
+  avatar: z.string().optional(),
+  name: z.string().optional(),
+  contactName: z.string().optional(),
 });
 export const deleteResponseSchema = z.object({ result: z.boolean() });
 export const notificationEnvelopeSchema = z.object({

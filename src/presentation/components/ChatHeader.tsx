@@ -17,7 +17,7 @@ export function ChatHeader({ onBack }: { readonly onBack?: () => void }) {
   }
   return <header className="chat-header">
     {onBack && <button className="back-button" onClick={onBack} aria-label="Вернуться к списку чатов"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg></button>}
-    <span className="avatar" aria-hidden="true">{conversation?.label.slice(-2) ?? "—"}</span>
+    <span className="avatar" aria-hidden="true">{conversation?.avatarUrl ? <img src={conversation.avatarUrl} alt="" /> : (conversation?.label.slice(-2) ?? "—")}</span>
     <div className="chat-heading"><h2>{conversation?.label ?? "Выберите чат"}</h2>{conversation && <span>{contactStatus}</span>}</div>
   </header>;
 }

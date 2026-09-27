@@ -9,6 +9,7 @@ export type ConversationAction =
   | { readonly type: "conversation-created"; readonly chatId: ChatId; readonly label: string }
   | { readonly type: "conversation-activated"; readonly chatId: ChatId }
   | { readonly type: "conversation-closed" }
+  | { readonly type: "contact-info-loaded"; readonly chatId: ChatId; readonly name?: string; readonly avatarUrl?: string }
   | { readonly type: "notification-classified"; readonly notification: ClassifiedNotification; readonly localId?: string }
   | { readonly type: "outgoing-created"; readonly chatId: ChatId; readonly localId: string; readonly attemptId: string; readonly text: string; readonly createdAt: number; readonly imageUrl?: string; readonly imageFile?: File; readonly fileName?: string; readonly mimeType?: string }
   | { readonly type: "outgoing-sent"; readonly chatId: ChatId; readonly localId: string; readonly attemptId: string; readonly idMessage: string }
@@ -129,6 +130,11 @@ export function conversationReducer(state: ConversationState, action: Conversati
       return activateConversation(state, action.chatId);
     case "conversation-closed":
       return state.activeChatId === null ? state : { ...state, activeChatId: null };
+    case "contact-info-loaded": {
+      const conversation = state.conversationsById[action.chatId];
+      if (!conversation) return state;
+      return { ...state, conversationsById: { ...state.conversationsById, [action.chatId]: { ...conversation, ...(action.name ? { label: action.name } : {}), ...(action.avatarUrl ? { avatarUrl: action.avatarUrl } : {}) } } };
+    }
     case "notification-classified": {
       if (action.notification.kind === "direct-text" || action.notification.kind === "direct-image") {
         return recordIncoming(state, action.notification, action.localId ?? `${action.notification.chatId}:${action.notification.idMessage}`);

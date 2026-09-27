@@ -6,6 +6,7 @@ export const SEEN_INBOUND_LIMIT = 500;
 export interface Conversation {
   readonly chatId: ChatId;
   readonly label: string;
+  readonly avatarUrl?: string;
   readonly unreadCount: number;
 }
 

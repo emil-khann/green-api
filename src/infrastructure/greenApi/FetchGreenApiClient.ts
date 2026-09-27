@@ -87,7 +87,9 @@ export class FetchGreenApiClient implements GreenApiPort {
       if (!parsed.success) return { ok: false, error: protocolError() };
       const rawLastSeen = parsed.data.lastSeen;
       const lastSeen = rawLastSeen === null || rawLastSeen === undefined ? null : Number(rawLastSeen);
-      return { ok: true, value: { lastSeen: Number.isFinite(lastSeen) && lastSeen > 0 ? lastSeen : null } };
+      const name = parsed.data.contactName?.trim() || parsed.data.name?.trim() || undefined;
+      const avatarUrl = parsed.data.avatar?.trim() || undefined;
+      return { ok: true, value: { lastSeen: typeof lastSeen === "number" && Number.isFinite(lastSeen) && lastSeen > 0 ? lastSeen : null, ...(name ? { name } : {}), ...(avatarUrl ? { avatarUrl } : {}) } };
     } catch (error) {
       return { ok: false, error: error instanceof ProtocolParseError ? protocolError() : (isAppError(error) ? error : mapFetchError(error)) };
     }

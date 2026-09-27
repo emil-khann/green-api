@@ -16,6 +16,8 @@ export type CheckAccountResult =
 
 export interface ContactInfoResult {
   readonly lastSeen: number | null;
+  readonly avatarUrl?: string;
+  readonly name?: string;
 }
 
 export interface GreenApiPort {

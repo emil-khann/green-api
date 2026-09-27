@@ -67,6 +67,7 @@ input:hover, textarea:hover { border-color: #92b9df; }
 .conversation-row:hover { background: #eaf4ff; }
 .conversation-row.active { background: #dceeff; }
 .avatar { display: grid; flex: 0 0 auto; place-items: center; width: 56px; height: 56px; border-radius: 50%; color: #125399; background: #cfe7ff; font-size: 13px; font-weight: 700; }
+.avatar img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
 .conversation-copy { min-width: 0; display: grid; gap: 4px; }
 .conversation-copy strong { font-size: 15px; font-weight: 600; }
 .conversation-copy strong, .conversation-copy span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
