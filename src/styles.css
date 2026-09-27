@@ -13,7 +13,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .brand strong { font-size: 1.22rem; }
 .brand span:not(.brand-mark) { color: #60758d; font-size: .86rem; }
 .brand-mark { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 15px; color: white; background: linear-gradient(145deg, #2c8cff, #0f61ca); font-weight: 800; box-shadow: 0 7px 18px #b4d5fa; }
-.brand.compact { margin: 0; }
+.brand.compact { justify-content: space-between; margin: 0; }
 .brand.compact strong { font-size: 1.3rem; }
 .brand.compact .brand-mark { order: 2; width: 34px; height: 34px; border-radius: 50%; font-size: 1.25rem; }
 .connection-form label { display: grid; gap: 7px; margin-top: 17px; color: #30455e; font-size: .9rem; font-weight: 650; }
@@ -42,9 +42,12 @@ input:hover, textarea:hover { border-color: #92b9df; }
 .settings-panel .connection-form { width: 100%; padding: 18px; border-radius: 16px; box-shadow: none; }
 .settings-panel .connection-form .brand { display: none; }
 .settings-panel .connection-form label:first-of-type { margin-top: 0; }
-.new-chat-form { position: relative; display: block; margin-top: 17px; }
-.new-chat-form input { height: 38px; padding: 8px 13px; border: 0; border-radius: 10px; font-size: 14px; }
-.new-chat-form .icon-button { position: absolute; right: 0; bottom: calc(100% + 16px); width: 36px; height: 36px; border-radius: 50%; font-size: 24px; font-weight: 300; }
+.new-chat-button { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; color: white; background: #2d8cff; border: 0; border-radius: 50%; font-size: 24px; font-weight: 300; line-height: 1; }
+.chat-search { position: relative; display: block; margin-top: 17px; }
+.chat-search svg { position: absolute; z-index: 1; top: 50%; left: 12px; width: 18px; height: 18px; color: #7e8490; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; transform: translateY(-50%); }
+.chat-search input { height: 38px; padding: 8px 13px 8px 38px; border: 0; border-radius: 10px; font-size: 14px; }
+.new-chat-form { display: grid; gap: 12px; }
+.new-chat-form .primary-button { margin-top: 4px; }
 .new-chat-form .form-error { grid-column: 1 / -1; }
 .connection-settings { margin-top: 12px; color: #526b83; font-size: .8rem; }
 .sidebar-settings { min-height: 75px; margin: 0; padding: 14px 18px; background: rgba(247,251,255,.98); border-top: 1px solid #e0ebf5; }
@@ -104,6 +107,12 @@ input:hover, textarea:hover { border-color: #92b9df; }
 .composer-preview img { width: 58px; height: 58px; object-fit: cover; border-radius: 10px; background: #e8f1fa; }
 .composer-preview span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #526b83; font-size: .82rem; }
 .composer-preview button { width: 30px; height: 30px; border: 0; border-radius: 50%; color: #5b7084; background: #e4eef7; font-size: 1.25rem; line-height: 1; }
+.modal-backdrop { position: fixed; z-index: 20; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(0,0,0,.56); backdrop-filter: blur(3px); }
+.new-chat-modal { position: relative; width: min(100%, 420px); padding: 28px; color: #182333; background: white; border-radius: 20px; box-shadow: 0 24px 80px rgba(0,0,0,.28); }
+.new-chat-modal h2 { margin: 0 42px 8px 0; font-size: 20px; }
+.new-chat-modal > p { margin: 0 0 22px; color: #687e95; font-size: 14px; line-height: 1.45; }
+.modal-close { position: absolute; top: 16px; right: 16px; width: 34px; height: 34px; padding: 0; color: #687e95; background: transparent; border: 0; border-radius: 50%; font-size: 28px; line-height: 1; }
+.modal-close:hover { background: rgba(127,127,127,.12); }
 @media (max-width: 900px) and (min-width: 701px) {
   .app-shell { grid-template-columns: 300px minmax(0,1fr); }
   .product-nav { display: none; }
@@ -141,7 +150,7 @@ input:hover, textarea:hover { border-color: #92b9df; }
   .product-nav-divider { background: #2b2d34; }
   .sidebar { background: #17181c; border-color: #2c2d33; }
   .sidebar-top { background: rgba(23,24,28,.97); border-color: #2c2d33; }
-  .new-chat-form .icon-button { background: #2d8cff; }
+  .new-chat-button { background: #2d8cff; }
   .connection-settings { color: #aeb1bd; }
   .sidebar-settings { background: rgba(23,24,28,.98); border-color: #2c2d33; }
   .connection-settings .connection-form { background: #24252c; }
@@ -166,6 +175,9 @@ input:hover, textarea:hover { border-color: #92b9df; }
   .composer-preview { color: #f1f2f7; background: #292a31; border-color: #42444f; }
   .composer-preview span { color: #b8bac4; }
   .composer-preview button { color: #d2d4dc; background: #3a3c45; }
+  .new-chat-modal { color: #f1f2f7; background: #202127; }
+  .new-chat-modal > p { color: #9da0ac; }
+  .modal-close { color: #b8bac4; }
   .message-image { background: #1b1c21; }
   .back-button { color: #b9b0ff; }
 }

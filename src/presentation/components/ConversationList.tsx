@@ -1,10 +1,17 @@
 import { useConversationActions, useConversationState } from "@presentation/ConversationProvider";
 
-export function ConversationList({ onSelect }: { readonly onSelect?: () => void }) {
+export function ConversationList({ onSelect, query = "", unreadOnly = false }: { readonly onSelect?: () => void; readonly query?: string; readonly unreadOnly?: boolean }) {
   const { state } = useConversationState();
   const { activateConversation } = useConversationActions();
   if (state.conversationOrder.length === 0) return <div className="sidebar-empty"><span aria-hidden="true">💬</span><p>Создайте первый чат</p></div>;
-  return <nav aria-label="Список чатов"><ul className="conversation-list">{state.conversationOrder.map((chatId) => {
+  const normalizedQuery = query.trim().toLocaleLowerCase("ru");
+  const visibleChatIds = state.conversationOrder.filter((chatId) => {
+    const conversation = state.conversationsById[chatId];
+    if (!conversation || (unreadOnly && conversation.unreadCount === 0)) return false;
+    return normalizedQuery.length === 0 || conversation.label.toLocaleLowerCase("ru").includes(normalizedQuery);
+  });
+  if (visibleChatIds.length === 0) return <div className="sidebar-empty"><span aria-hidden="true">💬</span><p>{unreadOnly ? "Новых сообщений нет" : "Чаты не найдены"}</p></div>;
+  return <nav aria-label="Список чатов"><ul className="conversation-list">{visibleChatIds.map((chatId) => {
     const conversation = state.conversationsById[chatId];
     if (!conversation) return null;
     const ids = state.messageIdsByChatId[chatId] ?? [];

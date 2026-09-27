@@ -1,6 +1,6 @@
 import { FetchGreenApiClient } from "@infrastructure/greenApi/FetchGreenApiClient";
 import type { GreenApiPort } from "@application/ports/GreenApiPort";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ConversationProvider, useConversationState } from "@presentation/ConversationProvider";
 import { ChatHeader } from "@presentation/components/ChatHeader";
 import { ConnectionForm } from "@presentation/components/ConnectionForm";
@@ -16,10 +16,8 @@ function ChatApplication() {
   const { session, state } = useConversationState();
   const [mobileListVisible, setMobileListVisible] = useState(true);
   const [sidebarView, setSidebarView] = useState<"chats" | "new" | "contacts" | "settings">("chats");
-  useEffect(() => {
-    if (sidebarView !== "new") return;
-    requestAnimationFrame(() => { document.querySelector<HTMLInputElement>("#new-chat-phone")?.focus(); });
-  }, [sidebarView]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [newChatOpen, setNewChatOpen] = useState(false);
   function openSidebar(view: typeof sidebarView) {
     setSidebarView(view);
     setMobileListVisible(true);
@@ -37,12 +35,16 @@ function ChatApplication() {
     </nav>
     <aside className="sidebar">
       {sidebarView === "settings" ? <div className="settings-panel"><h1>Настройки</h1><h2>Подключение</h2><ConnectionForm /></div> : <>
-        <div className="sidebar-top"><div className="brand compact"><strong>{sidebarView === "contacts" ? "Контакты" : sidebarView === "new" ? "Новый чат" : "Чаты"}</strong></div>{sidebarView !== "contacts" && <NewChatForm />}</div>
-        <div className="sidebar-list"><ConversationList onSelect={() => { setMobileListVisible(false); }} /></div>
+        <div className="sidebar-top">
+          <div className="brand compact"><strong>{sidebarView === "contacts" ? "Контакты" : sidebarView === "new" ? "Новые" : "Чаты"}</strong><button className="new-chat-button" aria-label="Добавить новый чат" onClick={() => setNewChatOpen(true)}>+</button></div>
+          <label className="chat-search"><span className="sr-only">Поиск чатов</span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Найти" /></label>
+        </div>
+        <div className="sidebar-list"><ConversationList query={searchQuery} unreadOnly={sidebarView === "new"} onSelect={() => { setMobileListVisible(false); }} /></div>
       </>}
     </aside>
     <section className="chat-pane"><ChatHeader onBack={() => { setMobileListVisible(true); }} /><StatusBanner /><div className="message-scroll"><MessageList /></div><MessageComposer /></section>
     <span className="sr-only" aria-live="polite">{state.activeChatId ? "Чат выбран" : "Чат не выбран"}</span>
+    {newChatOpen && <div className="modal-backdrop" role="presentation" onKeyDown={(event) => { if (event.key === "Escape") setNewChatOpen(false); }} onMouseDown={(event) => { if (event.target === event.currentTarget) setNewChatOpen(false); }}><section className="new-chat-modal" role="dialog" aria-modal="true" aria-labelledby="new-chat-title"><button className="modal-close" aria-label="Закрыть" onClick={() => setNewChatOpen(false)}>×</button><h2 id="new-chat-title">Новый чат</h2><p>Введите номер телефона собеседника в международном формате.</p><NewChatForm onCreated={() => setNewChatOpen(false)} /></section></div>}
   </main>;
 }
 
