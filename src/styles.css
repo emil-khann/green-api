@@ -29,7 +29,8 @@ input:hover, textarea:hover { border-color: #92b9df; }
 .new-chat-form { position: relative; display: grid; grid-template-columns: 1fr 42px; gap: 8px; margin-top: 18px; }
 .new-chat-form .form-error { grid-column: 1 / -1; }
 .connection-settings { margin-top: 12px; color: #526b83; font-size: .8rem; }
-.sidebar-settings { margin: 0; padding: 12px 18px 16px; background: rgba(247,251,255,.98); border-top: 1px solid #e0ebf5; }
+.sidebar-settings { min-height: 75px; margin: 0; padding: 14px 18px; background: rgba(247,251,255,.98); border-top: 1px solid #e0ebf5; }
+.sidebar-settings:not([open]) { display: flex; align-items: center; }
 .connection-settings summary { cursor: pointer; font-weight: 700; }
 .connection-settings .connection-form { width: 100%; margin-top: 10px; padding: 14px; border-radius: 16px; box-shadow: none; }
 .connection-settings .brand { display: none; }
