@@ -27,7 +27,7 @@ input:hover, textarea:hover { border-color: #92b9df; }
 .product-nav { min-height: 0; display: flex; flex-direction: column; align-items: center; gap: 22px; padding: 31px 8px 14px; background: #f1f7fd; border-right: 1px solid #dae7f4; }
 .product-nav-item { display: grid; justify-items: center; gap: 5px; padding: 0; color: #71869a; background: transparent; border: 0; }
 .product-nav-item:disabled { cursor: default; opacity: .38; }
-.product-nav-item svg { width: 24px; height: 24px; fill: currentColor; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.product-nav-item svg { width: 24px; height: 24px; overflow: visible; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .product-nav-item svg circle, .product-nav-item svg path { vector-effect: non-scaling-stroke; }
 .product-nav-item small { font-size: 10px; line-height: 12px; }
 .product-nav-item.active { color: #6b55e1; }
