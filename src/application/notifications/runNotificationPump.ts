@@ -41,7 +41,8 @@ function isAborted(signal: AbortSignal): boolean {
 
 async function waitForRetry(options: NotificationPumpOptions, operation: PumpOperation, attempt: number, error: AppError): Promise<boolean> {
   if (options.signal.aborted || error.kind === "aborted") return false;
-  if (!error.retryable) { options.onStopped?.(error); return false; }
+  const canRecoverAutomatically = error.retryable || (operation === "receive" && error.kind === "protocol");
+  if (!canRecoverAutomatically) { options.onStopped?.(error); return false; }
   const delayMs = retryDelayMs(attempt, error, options.random ?? Math.random, options);
   options.onRetry?.({ operation, attempt: attempt + 1, delayMs, safeMessage: error.safeMessage });
   try {
