@@ -109,6 +109,7 @@ export class FetchGreenApiClient implements GreenApiPort {
   async receiveNotification(session: AppliedSession, signal: AbortSignal): Promise<PortResult<ReceivedNotification | null>> {
     try {
       const response = await fetch(receiveNotificationEndpoint(session, this.#receiveTimeout), { method: "GET", signal });
+      if (response.status === 408) return { ok: true, value: null };
       if (!response.ok) return { ok: false, error: mapHttpError(response) };
       if (response.status === 204) return { ok: true, value: null };
       const raw = await parseJson(response);
