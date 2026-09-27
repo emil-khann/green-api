@@ -12,6 +12,29 @@ export const contactInfoResponseSchema = z.object({
   name: z.string().optional(),
   contactName: z.string().optional(),
 });
+export const chatSummarySchema = z.looseObject({
+  chatId: z.string(),
+  name: z.string(),
+  type: z.enum(["user", "group", "channel", "bot"]),
+  phoneNumber: z.number(),
+});
+export const chatsResponseSchema = z.array(chatSummarySchema);
+export const chatHistoryMessageSchema = z.looseObject({
+  type: z.enum(["incoming", "outgoing"]),
+  idMessage: z.string().trim().min(1),
+  timestamp: z.number().int().nonnegative(),
+  typeMessage: z.string(),
+  chatId: z.string(),
+  textMessage: z.string().optional(),
+  downloadUrl: z.url().optional(),
+  downloadUrlJpeg: z.url().optional(),
+  caption: z.string().optional(),
+  fileName: z.string().optional(),
+  mimeType: z.string().optional(),
+  extendedTextMessage: z.looseObject({ text: z.string().optional() }).optional(),
+});
+export type ChatHistoryResponseItem = z.output<typeof chatHistoryMessageSchema>;
+export const chatHistoryResponseSchema = z.array(chatHistoryMessageSchema);
 export const deleteResponseSchema = z.object({ result: z.boolean() });
 export const notificationEnvelopeSchema = z.object({
   receiptId: z.number().int().nonnegative(),

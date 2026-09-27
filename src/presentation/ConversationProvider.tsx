@@ -1,5 +1,5 @@
 import { conversationReducer, type ConversationAction } from "@application/conversations/conversationReducer";
-import { createConversationState, type ConversationMessage, type ConversationState } from "@application/conversations/conversationState";
+import { ChatHistoryPhase, createConversationState, type ChatHistoryState, type ConversationMessage, type ConversationState } from "@application/conversations/conversationState";
 import type { GreenApiPort } from "@application/ports/GreenApiPort";
 import type { IgnoredNotificationSummary } from "@application/notifications/runNotificationPump";
 import { normalizePhone } from "@domain/chatId";
@@ -21,6 +21,7 @@ interface ConversationActions {
   sendMessage: (text: string) => Promise<boolean>;
   sendImage: (file: File, caption?: string) => Promise<boolean>;
   retryMessage: (localId: string) => Promise<boolean>;
+  retryHistory: () => void;
 }
 
 interface ConversationContextValue {
@@ -30,6 +31,7 @@ interface ConversationContextValue {
   pumpStatus: NotificationPumpStatus;
   activeMessages: readonly ConversationMessage[];
   activeContactLastSeen: number | null | undefined;
+  activeHistoryState: ChatHistoryState | undefined;
 }
 
 const StateContext = createContext<ConversationContextValue | null>(null);
@@ -54,6 +56,7 @@ export function ConversationProvider({ client, children, idFactory = defaultIdFa
   const ignoredTotalsRef = useRef({ ignored: 0, malformed: 0 });
   const sessionRef = useRef<AppliedSession | null>(null);
   const checkAccountControllerRef = useRef<AbortController | null>(null);
+  const historyRequestsRef = useRef(new Set<ChatId>());
   sessionRef.current = session;
 
   const abortCheckAccount = useCallback(() => {
@@ -83,6 +86,36 @@ export function ConversationProvider({ client, children, idFactory = defaultIdFa
   const pumpStatus = useNotificationPump({ client, session, isOnline, onIncoming, onIgnored });
 
   useEffect(() => {
+    if (!session || !isOnline || !client.getChats) return;
+    const capturedSession = session;
+    const controller = new AbortController();
+    void client.getChats(capturedSession, controller.signal).then((result) => {
+      if (controller.signal.aborted || sessionRef.current?.sessionId !== capturedSession.sessionId || !result.ok) return;
+      dispatch({ type: "conversations-loaded", conversations: result.value });
+    });
+    return () => { controller.abort(); };
+  }, [client, isOnline, session]);
+
+  const requestHistory = useCallback((chatId: ChatId, force = false) => {
+    const capturedSession = sessionRef.current;
+    if (!capturedSession || !isOnline || !client.getChatHistory || historyRequestsRef.current.has(chatId)) return;
+    const phase = state.historyByChatId[chatId]?.phase;
+    if (!force && phase !== undefined && phase !== ChatHistoryPhase.Idle) return;
+    historyRequestsRef.current.add(chatId);
+    dispatch({ type: "history-loading", chatId });
+    void client.getChatHistory(capturedSession, chatId).then((result) => {
+      if (sessionRef.current?.sessionId !== capturedSession.sessionId) return;
+      dispatch(result.ok
+        ? { type: "history-loaded", chatId, messages: result.value }
+        : { type: "history-failed", chatId, error: result.error });
+    }).finally(() => { historyRequestsRef.current.delete(chatId); });
+  }, [client, isOnline, state.historyByChatId]);
+
+  useEffect(() => {
+    if (state.activeChatId) requestHistory(state.activeChatId);
+  }, [requestHistory, state.activeChatId]);
+
+  useEffect(() => {
     const chatId = state.activeChatId;
     if (!session || !chatId || !isOnline || !client.getContactInfo) { setActiveContactLastSeen(undefined); return; }
     const controller = new AbortController();
@@ -102,6 +135,7 @@ export function ConversationProvider({ client, children, idFactory = defaultIdFa
     abortCheckAccount();
     ignoredTotalsRef.current = { ignored: 0, malformed: 0 };
     setSession(result.session);
+    historyRequestsRef.current.clear();
     dispatch({ type: "session-applied", sessionId: result.session.sessionId });
     return { ok: true as const };
   }, [abortCheckAccount, idFactory, isOnline]);
@@ -126,6 +160,9 @@ export function ConversationProvider({ client, children, idFactory = defaultIdFa
 
   const activateConversation = useCallback((chatId: ChatId) => { dispatch({ type: "conversation-activated", chatId }); }, []);
   const closeConversation = useCallback(() => { dispatch({ type: "conversation-closed" }); }, []);
+  const retryHistory = useCallback(() => {
+    if (state.activeChatId) requestHistory(state.activeChatId, true);
+  }, [requestHistory, state.activeChatId]);
 
   const executeSend = useCallback(async (chatId: ChatId, localId: string, attemptId: string, text: string) => {
     const capturedSession = session;
@@ -185,8 +222,10 @@ export function ConversationProvider({ client, children, idFactory = defaultIdFa
     return (state.messageIdsByChatId[state.activeChatId] ?? []).flatMap((id) => state.messagesById[id] ? [state.messagesById[id]] : []);
   }, [state.activeChatId, state.messageIdsByChatId, state.messagesById]);
 
-  const stateValue = useMemo(() => ({ state, session, isOnline, pumpStatus, activeMessages, activeContactLastSeen }), [activeContactLastSeen, activeMessages, isOnline, pumpStatus, session, state]);
-  const actionsValue = useMemo(() => ({ applySession, createConversation, activateConversation, closeConversation, sendMessage, sendImage, retryMessage }), [activateConversation, applySession, closeConversation, createConversation, retryMessage, sendImage, sendMessage]);
+  const activeHistoryState = state.activeChatId ? state.historyByChatId[state.activeChatId] : undefined;
+
+  const stateValue = useMemo(() => ({ state, session, isOnline, pumpStatus, activeMessages, activeContactLastSeen, activeHistoryState }), [activeContactLastSeen, activeHistoryState, activeMessages, isOnline, pumpStatus, session, state]);
+  const actionsValue = useMemo(() => ({ applySession, createConversation, activateConversation, closeConversation, sendMessage, sendImage, retryMessage, retryHistory }), [activateConversation, applySession, closeConversation, createConversation, retryHistory, retryMessage, sendImage, sendMessage]);
 
   return <ActionsContext value={actionsValue}><StateContext value={stateValue}>{children}</StateContext></ActionsContext>;
 }

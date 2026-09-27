@@ -20,3 +20,7 @@ export function normalizePhone(value: string): ChatIdResult {
 export function isDirectChatId(value: string): value is MaxChatId {
   return /^[1-9]\d{0,19}$/.test(value);
 }
+
+export function isChatId(value: string): value is ChatId {
+  return /^-?[1-9]\d{0,19}$/.test(value);
+}

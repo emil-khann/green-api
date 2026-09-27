@@ -1,15 +1,17 @@
 import type { AppError } from "@application/errors/AppError";
 import type { NotificationEnvelope } from "@application/notifications/notificationTypes";
-import type { CheckAccountResult, ContactInfoResult, GreenApiPort, PortResult, ReceivedNotification } from "@application/ports/GreenApiPort";
-import { isDirectChatId, type ChatId } from "@domain/chatId";
+import type { ChatHistoryMessage, ChatSummary, CheckAccountResult, ContactInfoResult, GreenApiPort, PortResult, ReceivedNotification } from "@application/ports/GreenApiPort";
+import { isChatId, isDirectChatId, type ChatId } from "@domain/chatId";
 import type { AppliedSession } from "@domain/connection";
-import { checkAccountEndpoint, deleteNotificationEndpoint, getContactInfoEndpoint, receiveNotificationEndpoint, sendImageEndpoint, sendMessageEndpoint } from "@infrastructure/greenApi/endpoints";
+import { checkAccountEndpoint, deleteNotificationEndpoint, getChatHistoryEndpoint, getChatsEndpoint, getContactInfoEndpoint, receiveNotificationEndpoint, sendImageEndpoint, sendMessageEndpoint } from "@infrastructure/greenApi/endpoints";
 import { acknowledgementError, mapFetchError, mapHttpError, protocolError } from "@infrastructure/greenApi/mapFetchError";
-import { checkAccountResponseSchema, contactInfoResponseSchema, deleteResponseSchema, notificationBodySchema, notificationEnvelopeSchema, sendResponseSchema } from "@infrastructure/greenApi/schemas";
+import { chatHistoryResponseSchema, chatsResponseSchema, checkAccountResponseSchema, contactInfoResponseSchema, deleteResponseSchema, notificationBodySchema, notificationEnvelopeSchema, sendResponseSchema } from "@infrastructure/greenApi/schemas";
+import type { ChatHistoryResponseItem } from "@infrastructure/greenApi/schemas";
 
 const DEFAULT_RECEIVE_TIMEOUT_SECONDS = 20;
 const MIN_RECEIVE_TIMEOUT_SECONDS = 5;
 const MAX_RECEIVE_TIMEOUT_SECONDS = 60;
+const DEFAULT_HISTORY_COUNT = 100;
 const SUPPORTED_PHONE_PATTERN = /^(?:7\d{10}|375\d{9})$/;
 
 enum ApiMessageType {
@@ -45,6 +47,23 @@ function getNotificationMessageType(typeMessage: string | undefined): string {
     case ApiMessageType.Image: return "image";
     default: return typeMessage ?? "unsupported";
   }
+}
+
+function toHistoryMessage(value: ChatHistoryResponseItem): ChatHistoryMessage | null {
+  if (!isChatId(value.chatId)) return null;
+  const isImage = value.typeMessage === "imageMessage" || value.typeMessage === "stickerMessage" || value.mimeType?.startsWith("image/") === true;
+  const imageUrl = isImage ? value.downloadUrlJpeg ?? value.downloadUrl : undefined;
+  const text = value.textMessage ?? value.extendedTextMessage?.text ?? value.caption ?? "";
+  return {
+    idMessage: value.idMessage,
+    chatId: value.chatId,
+    direction: value.type,
+    text,
+    createdAt: value.timestamp * 1000,
+    ...(imageUrl ? { imageUrl } : {}),
+    ...(value.fileName ? { fileName: value.fileName } : {}),
+    ...(value.mimeType ? { mimeType: value.mimeType } : {}),
+  };
 }
 
 function toSafeNotification(body: unknown): NotificationEnvelope {
@@ -111,6 +130,34 @@ export class FetchGreenApiClient implements GreenApiPort {
       const name = parsed.data.contactName?.trim() || parsed.data.name?.trim() || undefined;
       const avatarUrl = parsed.data.avatar?.trim() || undefined;
       return { ok: true, value: { lastSeen: typeof lastSeen === "number" && Number.isFinite(lastSeen) && lastSeen > 0 ? lastSeen : null, ...(name ? { name } : {}), ...(avatarUrl ? { avatarUrl } : {}) } };
+    } catch (error) {
+      return { ok: false, error: mapClientError(error) };
+    }
+  }
+
+  async getChats(session: AppliedSession, signal?: AbortSignal): Promise<PortResult<readonly ChatSummary[]>> {
+    try {
+      const response = await fetch(getChatsEndpoint(session), { method: "GET", signal: signal ?? null });
+      if (!response.ok) return { ok: false, error: mapHttpError(response) };
+      const parsed = chatsResponseSchema.safeParse(await parseJson(response));
+      if (!parsed.success) return { ok: false, error: protocolError() };
+      const chats = parsed.data.flatMap((chat): ChatSummary[] => isChatId(chat.chatId) ? [{ ...chat, chatId: chat.chatId }] : []);
+      return { ok: true, value: chats };
+    } catch (error) {
+      return { ok: false, error: mapClientError(error) };
+    }
+  }
+
+  async getChatHistory(session: AppliedSession, chatId: ChatId, count = DEFAULT_HISTORY_COUNT, signal?: AbortSignal): Promise<PortResult<readonly ChatHistoryMessage[]>> {
+    try {
+      const response = await fetch(getChatHistoryEndpoint(session), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chatId, count }), signal: signal ?? null });
+      if (!response.ok) return { ok: false, error: mapHttpError(response) };
+      const parsed = chatHistoryResponseSchema.safeParse(await parseJson(response));
+      if (!parsed.success) return { ok: false, error: protocolError() };
+      return { ok: true, value: parsed.data.flatMap((message) => {
+        const mapped = toHistoryMessage(message);
+        return mapped ? [mapped] : [];
+      }) };
     } catch (error) {
       return { ok: false, error: mapClientError(error) };
     }

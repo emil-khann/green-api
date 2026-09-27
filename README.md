@@ -6,7 +6,8 @@ A web client for private MAX chats powered by GREEN-API. Built with React 19, Ty
 
 ## Features
 
-- multiple private conversations;
+- automatic chat list and history loading;
+- multiple private and group conversations exposed by MAX;
 - text and image messaging;
 - chat creation by Russian or Belarusian phone number;
 - chat search and a dedicated unread view;
@@ -15,7 +16,7 @@ A web client for private MAX chats powered by GREEN-API. Built with React 19, Ty
 - automatic light or dark theme based on system preferences;
 - responsive layout.
 
-Groups, channels, and calls are not supported.
+Channels and calls are not supported.
 
 ## Development
 
@@ -51,12 +52,13 @@ The client uses these GREEN-API methods:
 
 - `CheckAccount` to validate a number and obtain its MAX `chatId`;
 - `GetContactInfo` to load the contact name, avatar, and `lastSeen`;
+- `GetChats` and `GetChatHistory` to load existing conversations and their latest 100 messages;
 - `SendMessage` and `SendFileByUpload` to send content;
 - `ReceiveNotification` and `DeleteNotification` to receive and acknowledge notifications.
 
 ## Data storage
 
-Credentials, chats, and messages are stored only in the current tab's memory. Reloading the page or reconnecting clears the application state.
+Credentials and the client-side cache are stored only in the current tab's memory. After reconnecting, chats and their latest history are loaded again from GREEN-API.
 
 Sending and receiving pause while the device is offline and resume when the connection is restored. There is no offline queue or background delivery.
 

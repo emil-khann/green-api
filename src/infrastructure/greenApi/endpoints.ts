@@ -22,6 +22,14 @@ export function getContactInfoEndpoint(session: AppliedSession): string {
   return `${instanceBase(session)}/getContactInfo/${segment(session.apiTokenInstance)}`;
 }
 
+export function getChatsEndpoint(session: AppliedSession): string {
+  return `${instanceBase(session)}/getChats/${segment(session.apiTokenInstance)}`;
+}
+
+export function getChatHistoryEndpoint(session: AppliedSession): string {
+  return `${instanceBase(session)}/getChatHistory/${segment(session.apiTokenInstance)}`;
+}
+
 export function receiveNotificationEndpoint(session: AppliedSession, receiveTimeout: number): string {
   const url = new URL(`${instanceBase(session)}/receiveNotification/${segment(session.apiTokenInstance)}`);
   url.searchParams.set("receiveTimeout", String(receiveTimeout));

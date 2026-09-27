@@ -42,6 +42,18 @@ export interface ConversationDiagnostics {
   readonly malformedNotifications: number;
 }
 
+export enum ChatHistoryPhase {
+  Idle = "idle",
+  Loading = "loading",
+  Loaded = "loaded",
+  Error = "error",
+}
+
+export interface ChatHistoryState {
+  readonly phase: ChatHistoryPhase;
+  readonly error?: AppError;
+}
+
 export interface ConversationState {
   readonly sessionId: string | null;
   readonly conversationsById: Readonly<Record<string, Conversation>>;
@@ -52,6 +64,7 @@ export interface ConversationState {
   readonly seenInboundIds: Readonly<Record<string, true>>;
   readonly seenInboundOrder: readonly string[];
   readonly diagnostics: ConversationDiagnostics;
+  readonly historyByChatId: Readonly<Record<string, ChatHistoryState>>;
 }
 
 export function createConversationState(sessionId: string | null = null): ConversationState {
@@ -65,5 +78,6 @@ export function createConversationState(sessionId: string | null = null): Conver
     seenInboundIds: {},
     seenInboundOrder: [],
     diagnostics: { ignoredNotifications: 0, malformedNotifications: 0 },
+    historyByChatId: {},
   };
 }

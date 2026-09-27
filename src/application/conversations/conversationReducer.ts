@@ -1,15 +1,20 @@
-import { createConversationState, SEEN_INBOUND_LIMIT } from "@application/conversations/conversationState";
+import { ChatHistoryPhase, createConversationState, SEEN_INBOUND_LIMIT } from "@application/conversations/conversationState";
 import type { Conversation, ConversationState, OutgoingMessage } from "@application/conversations/conversationState";
 import type { AppError } from "@application/errors/AppError";
 import type { ClassifiedNotification } from "@application/notifications/notificationTypes";
+import type { ChatHistoryMessage, ChatSummary } from "@application/ports/GreenApiPort";
 import type { ChatId } from "@domain/chatId";
 
 export type ConversationAction =
   | { readonly type: "session-applied"; readonly sessionId: string }
   | { readonly type: "conversation-created"; readonly chatId: ChatId; readonly label: string }
+  | { readonly type: "conversations-loaded"; readonly conversations: readonly ChatSummary[] }
   | { readonly type: "conversation-activated"; readonly chatId: ChatId }
   | { readonly type: "conversation-closed" }
   | { readonly type: "contact-info-loaded"; readonly chatId: ChatId; readonly name?: string; readonly avatarUrl?: string }
+  | { readonly type: "history-loading"; readonly chatId: ChatId }
+  | { readonly type: "history-loaded"; readonly chatId: ChatId; readonly messages: readonly ChatHistoryMessage[] }
+  | { readonly type: "history-failed"; readonly chatId: ChatId; readonly error: AppError }
   | { readonly type: "notification-classified"; readonly notification: ClassifiedNotification; readonly localId?: string }
   | { readonly type: "outgoing-created"; readonly chatId: ChatId; readonly localId: string; readonly attemptId: string; readonly text: string; readonly createdAt: number; readonly imageUrl?: string; readonly imageFile?: File; readonly fileName?: string; readonly mimeType?: string }
   | { readonly type: "outgoing-sent"; readonly chatId: ChatId; readonly localId: string; readonly attemptId: string; readonly idMessage: string }
@@ -41,6 +46,63 @@ function activateConversation(state: ConversationState, chatId: ChatId): Convers
       ...state.conversationsById,
       [chatId]: { ...conversation, unreadCount: 0 },
     },
+  };
+}
+
+function recordConversations(state: ConversationState, summaries: readonly ChatSummary[]): ConversationState {
+  const conversationsById = { ...state.conversationsById };
+  const conversationOrder = [...state.conversationOrder];
+  const messageIdsByChatId = { ...state.messageIdsByChatId };
+  for (const summary of summaries) {
+    const existing = conversationsById[summary.chatId];
+    conversationsById[summary.chatId] = existing
+      ? { ...existing, label: summary.name.trim() || existing.label }
+      : { chatId: summary.chatId, label: summary.name.trim() || `Чат ${summary.chatId}`, unreadCount: 0 };
+    if (!existing) conversationOrder.push(summary.chatId);
+    messageIdsByChatId[summary.chatId] ??= [];
+  }
+  return { ...state, conversationsById, conversationOrder, messageIdsByChatId };
+}
+
+function recordHistory(state: ConversationState, chatId: ChatId, history: readonly ChatHistoryMessage[]): ConversationState {
+  const existingIds = state.messageIdsByChatId[chatId] ?? [];
+  const knownRemoteIds = new Set(existingIds.flatMap((localId) => {
+    const idMessage = state.messagesById[localId]?.idMessage;
+    return idMessage ? [idMessage] : [];
+  }));
+  const messagesById = { ...state.messagesById };
+  let seenInboundIds: Record<string, true> = { ...state.seenInboundIds };
+  const seenInboundOrder = [...state.seenInboundOrder];
+  const addedIds: string[] = [];
+  for (const message of history) {
+    if (message.chatId !== chatId || knownRemoteIds.has(message.idMessage)) continue;
+    knownRemoteIds.add(message.idMessage);
+    const localId = `history:${chatId}:${message.idMessage}`;
+    messagesById[localId] = message.direction === "incoming"
+      ? { ...message, localId, direction: "incoming", status: "received" }
+      : { ...message, localId, direction: "outgoing", status: "sent", attemptId: localId };
+    if (message.direction === "incoming") {
+      const dedupeKey = `${chatId}:${message.idMessage}`;
+      seenInboundIds[dedupeKey] = true;
+      seenInboundOrder.push(dedupeKey);
+    }
+    addedIds.push(localId);
+  }
+  while (seenInboundOrder.length > SEEN_INBOUND_LIMIT) {
+    const evicted = seenInboundOrder.shift();
+    if (evicted) seenInboundIds = Object.fromEntries(Object.entries(seenInboundIds).filter(([key]) => key !== evicted));
+  }
+  const messageIdsByChatId = [...existingIds, ...addedIds].sort((leftId, rightId) => {
+    const createdAtDifference = (messagesById[leftId]?.createdAt ?? 0) - (messagesById[rightId]?.createdAt ?? 0);
+    return createdAtDifference || leftId.localeCompare(rightId);
+  });
+  return {
+    ...state,
+    messagesById,
+    messageIdsByChatId: { ...state.messageIdsByChatId, [chatId]: messageIdsByChatId },
+    seenInboundIds,
+    seenInboundOrder,
+    historyByChatId: { ...state.historyByChatId, [chatId]: { phase: ChatHistoryPhase.Loaded } },
   };
 }
 
@@ -126,6 +188,8 @@ export function conversationReducer(state: ConversationState, action: Conversati
       return createConversationState(action.sessionId);
     case "conversation-created":
       return addConversation(state, action.chatId, action.label, true);
+    case "conversations-loaded":
+      return recordConversations(state, action.conversations);
     case "conversation-activated":
       return activateConversation(state, action.chatId);
     case "conversation-closed":
@@ -135,6 +199,12 @@ export function conversationReducer(state: ConversationState, action: Conversati
       if (!conversation) return state;
       return { ...state, conversationsById: { ...state.conversationsById, [action.chatId]: { ...conversation, ...(action.name ? { label: action.name } : {}), ...(action.avatarUrl ? { avatarUrl: action.avatarUrl } : {}) } } };
     }
+    case "history-loading":
+      return { ...state, historyByChatId: { ...state.historyByChatId, [action.chatId]: { phase: ChatHistoryPhase.Loading } } };
+    case "history-loaded":
+      return recordHistory(state, action.chatId, action.messages);
+    case "history-failed":
+      return { ...state, historyByChatId: { ...state.historyByChatId, [action.chatId]: { phase: ChatHistoryPhase.Error, error: action.error } } };
     case "notification-classified": {
       if (action.notification.kind === "direct-text" || action.notification.kind === "direct-image") {
         return recordIncoming(state, action.notification, action.localId ?? `${action.notification.chatId}:${action.notification.idMessage}`);
