@@ -286,6 +286,21 @@ test("settings toggle enables background chat data loading immediately", async (
   expect(readAutoFetchPreference()).toBe(false);
 });
 
+test("opens settings from the mobile bottom navigation", async () => {
+  const user = userEvent.setup();
+  const client = new FakeGreenApiClient();
+  render(<App client={client} />);
+  await connect(user);
+
+  await user.click(screen.getByRole("button", { name: "Настройки" }));
+  expect(
+    screen.getByRole("heading", { name: "Настройки" }),
+  ).toBeInTheDocument();
+
+  await user.click(screen.getByRole("button", { name: "Все" }));
+  expect(screen.getByText("Создайте первый чат")).toBeInTheDocument();
+});
+
 test("turning auto fetch off aborts background loading and restores the idle preview", async () => {
   const user = userEvent.setup();
   const client = new FakeGreenApiClient();
