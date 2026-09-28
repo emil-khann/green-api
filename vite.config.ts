@@ -2,7 +2,8 @@ import { fileURLToPath, URL } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
+  base: command === "build" ? "/green-api/" : "/",
   plugins: [react()],
   resolve: {
     alias: {
@@ -16,4 +17,4 @@ export default defineConfig({
       ),
     },
   },
-});
+}));
