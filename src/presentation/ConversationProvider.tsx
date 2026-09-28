@@ -1,5 +1,6 @@
 import { conversationReducer, type ConversationAction } from "@application/conversations/conversationReducer";
-import { ChatHistoryPhase, createConversationState, type ChatHistoryState, type ConversationMessage, type ConversationState } from "@application/conversations/conversationState";
+import { ConversationRequestCoordinator, type ConversationRequestEvent } from "@application/conversations/conversationRequestCoordinator";
+import { createConversationState, type ChatHistoryState, type ConversationMessage, type ConversationState } from "@application/conversations/conversationState";
 import type { GreenApiPort } from "@application/ports/GreenApiPort";
 import type { IgnoredNotificationSummary } from "@application/notifications/runNotificationPump";
 import { normalizePhone } from "@domain/chatId";
@@ -10,6 +11,7 @@ import { validateMessageText } from "@domain/message";
 import { useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState, createContext, type ReactNode } from "react";
 import { useNetworkStatus } from "@presentation/hooks/useNetworkStatus";
 import { useNotificationPump, type NotificationPumpStatus } from "@presentation/hooks/useNotificationPump";
+import { readAutoFetchPreference, writeAutoFetchPreference } from "@presentation/autoFetchPreference";
 
 type IdFactory = () => string;
 
@@ -17,11 +19,15 @@ interface ConversationActions {
   applySession: (draft: ConnectionDraft) => { ok: true } | { ok: false; message: string };
   createConversation: (phone: string) => Promise<{ ok: true } | { ok: false; message: string }>;
   activateConversation: (chatId: ChatId) => void;
+  consumeReadBoundary: (chatId: ChatId, messageId: string) => void;
   closeConversation: () => void;
   sendMessage: (text: string) => Promise<boolean>;
   sendImage: (file: File, caption?: string) => Promise<boolean>;
   retryMessage: (localId: string) => Promise<boolean>;
   retryHistory: () => void;
+  retryContact: () => void;
+  retryChats: () => void;
+  setAutoFetchEnabled: (enabled: boolean) => void;
 }
 
 interface ConversationContextValue {
@@ -32,6 +38,7 @@ interface ConversationContextValue {
   activeMessages: readonly ConversationMessage[];
   activeContactLastSeen: number | null | undefined;
   activeHistoryState: ChatHistoryState | undefined;
+  autoFetchEnabled: boolean;
 }
 
 const StateContext = createContext<ConversationContextValue | null>(null);
@@ -51,12 +58,12 @@ export interface ConversationProviderProps {
 export function ConversationProvider({ client, children, idFactory = defaultIdFactory }: ConversationProviderProps) {
   const [state, dispatch] = useReducer(conversationReducer, null, () => createConversationState());
   const [session, setSession] = useState<AppliedSession | null>(null);
-  const [activeContactLastSeen, setActiveContactLastSeen] = useState<number | null | undefined>(undefined);
+  const [autoFetchEnabled, setAutoFetchEnabledState] = useState(readAutoFetchPreference);
   const isOnline = useNetworkStatus();
   const ignoredTotalsRef = useRef({ ignored: 0, malformed: 0 });
   const sessionRef = useRef<AppliedSession | null>(null);
   const checkAccountControllerRef = useRef<AbortController | null>(null);
-  const historyRequestsRef = useRef(new Set<ChatId>());
+  const coordinatorRef = useRef<ConversationRequestCoordinator | null>(null);
   sessionRef.current = session;
 
   const abortCheckAccount = useCallback(() => {
@@ -85,60 +92,95 @@ export function ConversationProvider({ client, children, idFactory = defaultIdFa
 
   const pumpStatus = useNotificationPump({ client, session, isOnline, onIncoming, onIgnored });
 
-  useEffect(() => {
-    if (!session || !isOnline || !client.getChats) return;
-    const capturedSession = session;
-    const controller = new AbortController();
-    void client.getChats(capturedSession, controller.signal).then((result) => {
-      if (controller.signal.aborted || sessionRef.current?.sessionId !== capturedSession.sessionId || !result.ok) return;
-      dispatch({ type: "conversations-loaded", conversations: result.value });
-    });
-    return () => { controller.abort(); };
-  }, [client, isOnline, session]);
+  const onRequestEvent = useCallback((event: ConversationRequestEvent) => {
+    switch (event.resource) {
+      case "chats":
+        if (event.status === "loading") {
+          dispatch({ type: "conversations-loading" });
+        } else if (event.status === "success") {
+          dispatch({ type: "conversations-loaded", conversations: event.value });
+        } else if (event.status === "cancelled") {
+          dispatch({ type: "conversations-cancelled" });
+        } else {
+          dispatch({ type: "conversations-failed", error: event.error });
+        }
+        break;
+      case "history":
+        if (event.status === "loading") dispatch({ type: "history-loading", chatId: event.chatId });
+        else if (event.status === "success") dispatch({ type: "history-loaded", chatId: event.chatId, messages: event.value });
+        else if (event.status === "cancelled") dispatch({ type: "history-cancelled", chatId: event.chatId });
+        else dispatch({ type: "history-failed", chatId: event.chatId, error: event.error });
+        break;
+      case "contact":
+        if (event.status === "loading") {
+          dispatch({ type: "contact-info-loading", chatId: event.chatId });
+        } else if (event.status === "success") {
+          dispatch({
+            type: "contact-info-loaded",
+            chatId: event.chatId,
+            lastSeen: event.value.lastSeen,
+            ...(event.value.name ? { name: event.value.name } : {}),
+            ...(event.value.avatarUrl ? { avatarUrl: event.value.avatarUrl } : {}),
+          });
+        } else if (event.status === "cancelled") {
+          dispatch({ type: "contact-info-cancelled", chatId: event.chatId });
+        } else {
+          dispatch({ type: "contact-info-failed", chatId: event.chatId, error: event.error });
+        }
+        break;
+    }
+  }, []);
 
-  const requestHistory = useCallback((chatId: ChatId, force = false) => {
-    const capturedSession = sessionRef.current;
-    if (!capturedSession || !isOnline || !client.getChatHistory || historyRequestsRef.current.has(chatId)) return;
-    const phase = state.historyByChatId[chatId]?.phase;
-    if (!force && phase !== undefined && phase !== ChatHistoryPhase.Idle) return;
-    historyRequestsRef.current.add(chatId);
-    dispatch({ type: "history-loading", chatId });
-    void client.getChatHistory(capturedSession, chatId).then((result) => {
-      if (sessionRef.current?.sessionId !== capturedSession.sessionId) return;
-      dispatch(result.ok
-        ? { type: "history-loaded", chatId, messages: result.value }
-        : { type: "history-failed", chatId, error: result.error });
-    }).finally(() => { historyRequestsRef.current.delete(chatId); });
-  }, [client, isOnline, state.historyByChatId]);
+  const coordinator = useMemo(() => new ConversationRequestCoordinator({ client, onEvent: onRequestEvent }), [client, onRequestEvent]);
 
   useEffect(() => {
-    if (state.activeChatId) requestHistory(state.activeChatId);
-  }, [requestHistory, state.activeChatId]);
+    coordinatorRef.current = coordinator;
+    if (!session || !isOnline) {
+      coordinator.stopSession();
+      return () => {
+        if (coordinatorRef.current === coordinator) coordinatorRef.current = null;
+        coordinator.stopSession();
+      };
+    }
+    coordinator.startSession(session);
+    void coordinator.loadChats({ priority: "active" });
+    return () => {
+      if (coordinatorRef.current === coordinator) coordinatorRef.current = null;
+      coordinator.stopSession();
+    };
+  }, [coordinator, isOnline, session]);
 
   useEffect(() => {
-    const chatId = state.activeChatId;
-    if (!session || !chatId || !isOnline || !client.getContactInfo) { setActiveContactLastSeen(undefined); return; }
-    const controller = new AbortController();
-    setActiveContactLastSeen(undefined);
-    void client.getContactInfo(session, chatId, controller.signal).then((result) => {
-      if (controller.signal.aborted) return;
-      setActiveContactLastSeen(result.ok ? result.value.lastSeen : null);
-      if (result.ok && (result.value.name || result.value.avatarUrl)) dispatch({ type: "contact-info-loaded", chatId, ...(result.value.name ? { name: result.value.name } : {}), ...(result.value.avatarUrl ? { avatarUrl: result.value.avatarUrl } : {}) });
-    });
-    return () => { controller.abort(); };
-  }, [client, isOnline, session, state.activeChatId]);
+    if (!autoFetchEnabled || !session || !isOnline) return;
+    for (const chatId of state.conversationOrder) {
+      void coordinator.ensureHistory(chatId, { priority: "background" });
+      void coordinator.ensureContact(chatId, { priority: "background" });
+    }
+  }, [autoFetchEnabled, coordinator, isOnline, session, state.conversationOrder]);
+
+  useEffect(() => {
+    if (!session || !isOnline || !state.activeChatId) return;
+    void coordinator.ensureHistory(state.activeChatId, { priority: "active" });
+    void coordinator.ensureContact(state.activeChatId, { priority: "active" });
+  }, [coordinator, isOnline, session, state.activeChatId]);
+
+  const setAutoFetchEnabled = useCallback((enabled: boolean) => {
+    if (!enabled) coordinator.cancelBackgroundJobs();
+    writeAutoFetchPreference(enabled);
+    setAutoFetchEnabledState(enabled);
+  }, [coordinator]);
 
   const applySession = useCallback((draft: ConnectionDraft) => {
     if (!isOnline) return { ok: false as const, message: "Подключение недоступно без сети." };
     const result = applyConnection(draft, idFactory());
     if (!result.ok) return { ok: false as const, message: result.error.safeMessage };
     abortCheckAccount();
+    coordinator.stopSession();
     ignoredTotalsRef.current = { ignored: 0, malformed: 0 };
     setSession(result.session);
-    historyRequestsRef.current.clear();
     dispatch({ type: "session-applied", sessionId: result.session.sessionId });
     return { ok: true as const };
-  }, [abortCheckAccount, idFactory, isOnline]);
+  }, [abortCheckAccount, coordinator, idFactory, isOnline]);
 
   const createConversation = useCallback(async (phone: string) => {
     const result = normalizePhone(phone);
@@ -155,14 +197,29 @@ export function ConversationProvider({ client, children, idFactory = defaultIdFa
     if (!checked.ok) return { ok: false as const, message: checked.error.kind === "aborted" ? "" : checked.error.safeMessage };
     if (!checked.value.exist) return { ok: false as const, message: "Для этого номера не найден аккаунт MAX." };
     dispatch({ type: "conversation-created", chatId: checked.value.chatId, label: `+${result.digits}` });
+    void coordinator.ensureHistory(checked.value.chatId, { priority: "active" });
+    void coordinator.ensureContact(checked.value.chatId, { priority: "active" });
     return { ok: true as const };
-  }, [abortCheckAccount, client, isOnline, session]);
+  }, [abortCheckAccount, client, coordinator, isOnline, session]);
 
-  const activateConversation = useCallback((chatId: ChatId) => { dispatch({ type: "conversation-activated", chatId }); }, []);
+  const activateConversation = useCallback((chatId: ChatId) => {
+    dispatch({ type: "conversation-activated", chatId });
+    void coordinator.ensureHistory(chatId, { priority: "active" });
+    void coordinator.ensureContact(chatId, { priority: "active" });
+  }, [coordinator]);
+  const consumeReadBoundary = useCallback((chatId: ChatId, messageId: string) => {
+    dispatch({ type: "read-boundary-consumed", chatId, messageId });
+  }, []);
   const closeConversation = useCallback(() => { dispatch({ type: "conversation-closed" }); }, []);
   const retryHistory = useCallback(() => {
-    if (state.activeChatId) requestHistory(state.activeChatId, true);
-  }, [requestHistory, state.activeChatId]);
+    if (state.activeChatId) void coordinator.ensureHistory(state.activeChatId, { priority: "active", refresh: true });
+  }, [coordinator, state.activeChatId]);
+  const retryContact = useCallback(() => {
+    if (state.activeChatId) void coordinator.ensureContact(state.activeChatId, { priority: "active", refresh: true });
+  }, [coordinator, state.activeChatId]);
+  const retryChats = useCallback(() => {
+    void coordinator.loadChats({ priority: "active", refresh: true });
+  }, [coordinator]);
 
   const executeSend = useCallback(async (chatId: ChatId, localId: string, attemptId: string, text: string) => {
     const capturedSession = session;
@@ -223,9 +280,10 @@ export function ConversationProvider({ client, children, idFactory = defaultIdFa
   }, [state.activeChatId, state.messageIdsByChatId, state.messagesById]);
 
   const activeHistoryState = state.activeChatId ? state.historyByChatId[state.activeChatId] : undefined;
+  const activeContactLastSeen = state.activeChatId ? state.contactsByChatId[state.activeChatId]?.lastSeen : undefined;
 
-  const stateValue = useMemo(() => ({ state, session, isOnline, pumpStatus, activeMessages, activeContactLastSeen, activeHistoryState }), [activeContactLastSeen, activeHistoryState, activeMessages, isOnline, pumpStatus, session, state]);
-  const actionsValue = useMemo(() => ({ applySession, createConversation, activateConversation, closeConversation, sendMessage, sendImage, retryMessage, retryHistory }), [activateConversation, applySession, closeConversation, createConversation, retryHistory, retryMessage, sendImage, sendMessage]);
+  const stateValue = useMemo(() => ({ state, session, isOnline, pumpStatus, activeMessages, activeContactLastSeen, activeHistoryState, autoFetchEnabled }), [activeContactLastSeen, activeHistoryState, activeMessages, autoFetchEnabled, isOnline, pumpStatus, session, state]);
+  const actionsValue = useMemo(() => ({ applySession, createConversation, activateConversation, consumeReadBoundary, closeConversation, sendMessage, sendImage, retryMessage, retryHistory, retryContact, retryChats, setAutoFetchEnabled }), [activateConversation, applySession, closeConversation, consumeReadBoundary, createConversation, retryChats, retryContact, retryHistory, retryMessage, sendImage, sendMessage, setAutoFetchEnabled]);
 
   return <ActionsContext value={actionsValue}><StateContext value={stateValue}>{children}</StateContext></ActionsContext>;
 }

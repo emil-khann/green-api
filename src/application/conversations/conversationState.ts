@@ -8,6 +8,8 @@ export interface Conversation {
   readonly label: string;
   readonly avatarUrl?: string;
   readonly unreadCount: number;
+  /** Local message id immediately before the current unread segment. */
+  readonly lastReadMessageId?: string;
 }
 
 interface MessageBase {
@@ -42,16 +44,29 @@ export interface ConversationDiagnostics {
   readonly malformedNotifications: number;
 }
 
-export enum ChatHistoryPhase {
+export enum ResourcePhase {
   Idle = "idle",
   Loading = "loading",
   Loaded = "loaded",
   Error = "error",
 }
 
-export interface ChatHistoryState {
-  readonly phase: ChatHistoryPhase;
+// Compatibility names keep presentation code readable while every remotely
+// loaded resource now shares the same state machine.
+export const ChatHistoryPhase = ResourcePhase;
+export type ChatHistoryPhase = ResourcePhase;
+
+export interface ResourceState {
+  readonly phase: ResourcePhase;
   readonly error?: AppError;
+}
+
+export type ChatHistoryState = ResourceState;
+
+export interface ContactState extends ResourceState {
+  readonly lastSeen?: number | null;
+  readonly name?: string;
+  readonly avatarUrl?: string;
 }
 
 export interface ConversationState {
@@ -65,6 +80,8 @@ export interface ConversationState {
   readonly seenInboundOrder: readonly string[];
   readonly diagnostics: ConversationDiagnostics;
   readonly historyByChatId: Readonly<Record<string, ChatHistoryState>>;
+  readonly contactsByChatId: Readonly<Record<string, ContactState>>;
+  readonly conversationList: ResourceState;
 }
 
 export function createConversationState(sessionId: string | null = null): ConversationState {
@@ -79,5 +96,7 @@ export function createConversationState(sessionId: string | null = null): Conver
     seenInboundOrder: [],
     diagnostics: { ignoredNotifications: 0, malformedNotifications: 0 },
     historyByChatId: {},
+    contactsByChatId: {},
+    conversationList: { phase: ResourcePhase.Idle },
   };
 }

@@ -14,6 +14,8 @@ const token = "secret-token";
 const session: AppliedSession = { sessionId: "test", apiUrl, idInstance: "123456", apiTokenInstance: token };
 const chatId: ChatId = "10000000";
 const checkUrl = `${apiUrl}/waInstance123456/checkAccount/${token}`;
+const contactUrl = `${apiUrl}/waInstance123456/getContactInfo/${token}`;
+const historyUrl = `${apiUrl}/waInstance123456/getChatHistory/${token}`;
 const sendUrl = `${apiUrl}/waInstance123456/sendMessage/${token}`;
 const receiveUrl = `${apiUrl}/waInstance123456/receiveNotification/${token}`;
 const deleteUrl = `${apiUrl}/waInstance123456/deleteNotification/${token}/42`;
@@ -65,6 +67,129 @@ describe("FetchGreenApiClient", () => {
     const controller = new AbortController();
     controller.abort();
     await expect(new FetchGreenApiClient().checkAccount(session, "79991234567", controller.signal)).resolves.toMatchObject({ ok: false, error: { kind: "aborted", retryable: false } });
+  });
+
+  test.each([
+    [
+      { lastSeen: null, avatar: " https://cdn.test/avatar.jpg ", contactName: " Сохранённое имя ", name: "Имя профиля" },
+      { lastSeen: null, avatarUrl: "https://cdn.test/avatar.jpg", name: "Сохранённое имя" },
+    ],
+    [
+      { lastSeen: "123", name: " Имя профиля " },
+      { lastSeen: 123, name: "Имя профиля" },
+    ],
+    [
+      { lastSeen: null },
+      { lastSeen: null },
+    ],
+    [
+      { lastSeen: null, avatar: null, contactName: null, name: null },
+      { lastSeen: null },
+    ],
+    [
+      { lastSeen: false, avatar: null, contactName: "Контакт" },
+      { lastSeen: null, name: "Контакт" },
+    ],
+    [
+      { lastSeen: "456", avatar: " ", contactName: "", name: " Имя профиля " },
+      { lastSeen: 456, name: "Имя профиля" },
+    ],
+    [
+      { lastSeen: 789, avatar: "javascript:alert(1)", contactName: "Контакт" },
+      { lastSeen: 789, name: "Контакт" },
+    ],
+  ])("maps contact avatar, names and nullable lastSeen", async (payload, expected) => {
+    server.use(http.post(contactUrl, async ({ request }) => {
+      expect(await request.json()).toEqual({ chatId });
+      return HttpResponse.json(payload);
+    }));
+    await expect(new FetchGreenApiClient().getContactInfo(session, chatId)).resolves.toEqual({ ok: true, value: expected });
+  });
+
+  test.each([
+    { lastSeen: { timestamp: 123 } },
+    { lastSeen: true },
+    { lastSeen: null, avatar: { url: "https://cdn.test/avatar.jpg" } },
+    { lastSeen: null, name: 42 },
+  ])("rejects malformed contact info payload", async (payload) => {
+    server.use(http.post(contactUrl, () => HttpResponse.json(payload)));
+    await expect(new FetchGreenApiClient().getContactInfo(session, chatId)).resolves.toMatchObject({
+      ok: false,
+      error: { kind: "protocol", retryable: false },
+    });
+  });
+
+  test("maps contact rate limiting with Retry-After", async () => {
+    server.use(http.post(contactUrl, () => new HttpResponse(null, { status: 429, headers: { "Retry-After": "2" } })));
+    await expect(new FetchGreenApiClient().getContactInfo(session, chatId)).resolves.toMatchObject({
+      ok: false,
+      error: { kind: "rate-limit", retryable: true, retryAfterMs: 2_000 },
+    });
+  });
+
+  test("maps the MAX tariff contact limit without retrying or exposing the endpoint", async () => {
+    server.use(http.post(contactUrl, () => new HttpResponse(null, { status: 466 })));
+    const result = await new FetchGreenApiClient().getContactInfo(session, chatId);
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        kind: "rate-limit",
+        retryable: false,
+        status: 466,
+        safeMessage: "Достигнут лимит контактов или чатов по тарифу GREEN-API. Аватары и статус недоступны. Проверьте или обновите тариф.",
+      },
+    });
+    expect(JSON.stringify(result)).not.toContain(token);
+    expect(JSON.stringify(result)).not.toContain(apiUrl);
+    expect(JSON.stringify(result)).not.toContain(chatId);
+  });
+
+  test("keeps text history when optional media URLs are blank, null or unsafe", async () => {
+    server.use(http.post(historyUrl, async ({ request }) => {
+      expect(await request.json()).toEqual({ chatId, count: 100 });
+      return HttpResponse.json([
+        { type: "incoming", idMessage: "text-1", timestamp: 10, typeMessage: "textMessage", chatId, textMessage: "Текст", downloadUrl: "", downloadUrlJpeg: null },
+        { type: "incoming", idMessage: "image-1", timestamp: 11, typeMessage: "imageMessage", chatId, caption: "Безопасное изображение", downloadUrl: " https://cdn.test/image.jpg ", downloadUrlJpeg: "javascript:alert(1)" },
+        { type: "incoming", idMessage: "image-2", timestamp: 12, typeMessage: "imageMessage", chatId, caption: "Без URL", downloadUrl: "not a url", downloadUrlJpeg: { href: "https://evil.test" } },
+      ]);
+    }));
+
+    await expect(new FetchGreenApiClient().getChatHistory(session, chatId)).resolves.toEqual({ ok: true, value: [
+      { idMessage: "text-1", chatId, direction: "incoming", text: "Текст", createdAt: 10_000 },
+      { idMessage: "image-1", chatId, direction: "incoming", text: "Безопасное изображение", createdAt: 11_000, imageUrl: "https://cdn.test/image.jpg" },
+      { idMessage: "image-2", chatId, direction: "incoming", text: "Без URL", createdAt: 12_000 },
+    ] });
+  });
+
+  test("skips malformed history items while preserving valid messages", async () => {
+    server.use(http.post(historyUrl, () => HttpResponse.json([
+      { type: "incoming", idMessage: "", timestamp: 10, typeMessage: "textMessage", chatId, textMessage: "Невалидное" },
+      { type: "system", idMessage: "system-1", timestamp: 11, typeMessage: "systemMessage", chatId },
+      { type: "outgoing", idMessage: "valid-1", timestamp: 12, typeMessage: "textMessage", chatId, textMessage: "Корректное" },
+    ])));
+
+    await expect(new FetchGreenApiClient().getChatHistory(session, chatId)).resolves.toEqual({ ok: true, value: [
+      { idMessage: "valid-1", chatId, direction: "outgoing", text: "Корректное", createdAt: 12_000 },
+    ] });
+  });
+
+  test("returns an empty successful history when every array item is unsupported", async () => {
+    server.use(http.post(historyUrl, () => HttpResponse.json([
+      { type: "system", idMessage: "system-1", timestamp: 10, typeMessage: "systemMessage", chatId },
+      null,
+      "unknown",
+    ])));
+
+    await expect(new FetchGreenApiClient().getChatHistory(session, chatId)).resolves.toEqual({ ok: true, value: [] });
+  });
+
+  test("rejects a non-array history response as a protocol error", async () => {
+    server.use(http.post(historyUrl, () => HttpResponse.json({ messages: [] })));
+
+    await expect(new FetchGreenApiClient().getChatHistory(session, chatId)).resolves.toMatchObject({
+      ok: false,
+      error: { kind: "protocol", retryable: false },
+    });
   });
 
   test("sends the exact method, path and JSON contract", async () => {
@@ -156,7 +281,7 @@ describe("FetchGreenApiClient", () => {
 
   test.each([
     [{ typeWebhook: "outgoingMessageStatus" }, "unsupported"],
-    [{ typeWebhook: "incomingMessageReceived", senderData: { chatId: "-10000000", chatType: "group" }, messageData: { typeMessage: "imageMessage" } }, "imageMessage"],
+    [{ typeWebhook: "incomingMessageReceived", senderData: { chatId: "-10000000", chatType: "group" }, messageData: { typeMessage: "imageMessage" } }, "image"],
     ["broken-body", "malformed"],
   ])("keeps a valid receipt ackable for unsupported or malformed body", async (body, messageType) => {
     server.use(http.get(receiveUrl, () => HttpResponse.json({ receiptId: 42, body })));

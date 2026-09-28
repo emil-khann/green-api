@@ -13,6 +13,7 @@ export function parseRetryAfter(value: string | null, now = Date.now()): number 
 export function mapHttpError(response: Response): AppError {
   const status = response.status;
   if (status === 401 || status === 403) return { kind: "auth", safeMessage: "Проверьте ID instance и API token.", retryable: false, status };
+  if (status === 466) return { kind: "rate-limit", safeMessage: "Достигнут лимит контактов или чатов по тарифу GREEN-API. Аватары и статус недоступны. Проверьте или обновите тариф.", retryable: false, status };
   if (status === 469) return { kind: "rate-limit", safeMessage: "Лимит запросов GREEN-API исчерпан. Повторите позже.", retryable: false, status };
   if (status === 429) {
     const retryAfterMs = parseRetryAfter(response.headers.get("Retry-After"));

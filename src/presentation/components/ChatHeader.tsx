@@ -1,4 +1,6 @@
-import { useConversationState } from "@presentation/ConversationProvider";
+import { ResourcePhase } from "@application/conversations/conversationState";
+import { useConversationActions, useConversationState } from "@presentation/ConversationProvider";
+import { useState } from "react";
 
 const API_TIMESTAMP_MILLISECONDS_THRESHOLD = 10_000_000_000;
 const RECENTLY_SEEN_THRESHOLD_MS = 5 * 60_000;
@@ -26,13 +28,39 @@ function formatContactStatus(lastSeenValue: number | null | undefined, now = new
   return `Был(-а) ${dateFormatter.format(lastSeen)}`;
 }
 
+function ContactAvatar({ avatarUrl, label }: { readonly avatarUrl: string | undefined; readonly label: string | undefined }) {
+  const [failedUrl, setFailedUrl] = useState<string>();
+  if (!avatarUrl || failedUrl === avatarUrl) return <>{label?.slice(-2) ?? "—"}</>;
+  return <img src={avatarUrl} alt="" onError={() => { setFailedUrl(avatarUrl); }} />;
+}
+
 export function ChatHeader({ onBack }: { readonly onBack?: () => void }) {
-  const { state, activeContactLastSeen } = useConversationState();
-  const conversation = state.activeChatId ? state.conversationsById[state.activeChatId] : undefined;
-  const contactStatus = formatContactStatus(activeContactLastSeen);
+  const { state } = useConversationState();
+  const { retryContact } = useConversationActions();
+  const chatId = state.activeChatId;
+  const conversation = chatId ? state.conversationsById[chatId] : undefined;
+  const contact = chatId ? state.contactsByChatId[chatId] : undefined;
+  const contactPhase = contact?.phase ?? ResourcePhase.Idle;
+  const hasCachedStatus = contact?.lastSeen !== undefined;
+  const contactStatus = contactPhase === ResourcePhase.Error && !hasCachedStatus
+    ? "Не удалось получить статус"
+    : contactPhase === ResourcePhase.Idle || (contactPhase === ResourcePhase.Loading && !hasCachedStatus)
+      ? "Получаем статус…"
+      : formatContactStatus(contact?.lastSeen);
+  const contactName = contact?.name ?? conversation?.label;
+  const avatarUrl = contact?.avatarUrl ?? conversation?.avatarUrl;
+  const isContactLoading = contactPhase === ResourcePhase.Idle || contactPhase === ResourcePhase.Loading;
+  const contactError = contactPhase === ResourcePhase.Error ? contact?.error : undefined;
   return <header className="chat-header">
-    {onBack && <button className="back-button" onClick={onBack} aria-label="Вернуться к списку чатов"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg></button>}
-    <span className="avatar" aria-hidden="true">{conversation?.avatarUrl ? <img src={conversation.avatarUrl} alt="" /> : (conversation?.label.slice(-2) ?? "—")}</span>
-    <div className="chat-heading"><h2>{conversation?.label ?? "Выберите чат"}</h2>{conversation && <span>{contactStatus}</span>}</div>
+    {onBack ? <button className="back-button" onClick={onBack} aria-label="Вернуться к списку чатов"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg></button> : null}
+    <span className="avatar" aria-hidden="true"><ContactAvatar avatarUrl={avatarUrl} label={contactName} /></span>
+    <div className="chat-heading">
+      <h2>{contactName ?? "Выберите чат"}</h2>
+      {conversation ? <div className={`contact-status ${contactError ? "contact-status-error" : ""}`} role="status" aria-live="polite" aria-busy={isContactLoading}>
+        <span>{contactStatus}</span>
+        {contactPhase === ResourcePhase.Loading && hasCachedStatus ? <span className="contact-refreshing" aria-label="Статус обновляется">· обновляем</span> : null}
+        {contactError ? <button type="button" onClick={retryContact} aria-label={`Повторить загрузку статуса. ${contactError.safeMessage}`} title={contactError.safeMessage}>Повторить</button> : null}
+      </div> : null}
+    </div>
   </header>;
 }

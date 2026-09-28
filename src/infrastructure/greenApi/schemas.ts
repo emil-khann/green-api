@@ -1,5 +1,17 @@
 import { z } from "zod";
 
+const optionalHttpUrlSchema = z.unknown().transform((value): string | undefined => {
+  if (typeof value !== "string") return undefined;
+  const candidate = value.trim();
+  if (!candidate) return undefined;
+  try {
+    const parsed = new URL(candidate);
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? candidate : undefined;
+  } catch {
+    return undefined;
+  }
+}).optional();
+
 export const sendResponseSchema = z.object({ idMessage: z.string().trim().min(1) });
 export const checkAccountResponseSchema = z.object({
   exist: z.boolean(),
@@ -7,10 +19,10 @@ export const checkAccountResponseSchema = z.object({
   fromCache: z.boolean().optional(),
 });
 export const contactInfoResponseSchema = z.object({
-  lastSeen: z.union([z.number(), z.string()]).nullable().optional(),
-  avatar: z.string().optional(),
-  name: z.string().optional(),
-  contactName: z.string().optional(),
+  lastSeen: z.union([z.number(), z.string(), z.literal(false)]).nullable().optional(),
+  avatar: z.string().nullable().optional(),
+  name: z.string().nullable().optional(),
+  contactName: z.string().nullable().optional(),
 });
 export const chatSummarySchema = z.looseObject({
   chatId: z.string(),
@@ -26,8 +38,8 @@ export const chatHistoryMessageSchema = z.looseObject({
   typeMessage: z.string(),
   chatId: z.string(),
   textMessage: z.string().optional(),
-  downloadUrl: z.url().optional(),
-  downloadUrlJpeg: z.url().optional(),
+  downloadUrl: optionalHttpUrlSchema,
+  downloadUrlJpeg: optionalHttpUrlSchema,
   caption: z.string().optional(),
   fileName: z.string().optional(),
   mimeType: z.string().optional(),

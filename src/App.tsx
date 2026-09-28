@@ -43,8 +43,8 @@ function countUnreadConversations(state: ConversationState): number {
 }
 
 function ChatApplication() {
-  const { session, state } = useConversationState();
-  const { closeConversation } = useConversationActions();
+  const { session, state, autoFetchEnabled } = useConversationState();
+  const { closeConversation, setAutoFetchEnabled } = useConversationActions();
   const [mobileListVisible, setMobileListVisible] = useState(true);
   const [sidebarView, setSidebarView] = useState<SidebarView>(SidebarView.Chats);
   const [searchQuery, setSearchQuery] = useState("");
@@ -64,7 +64,7 @@ function ChatApplication() {
       <button className={navigationClass(SidebarView.Settings, sidebarView, "settings")} onClick={() => { openSidebar(SidebarView.Settings); }}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.2 13.5a7.8 7.8 0 0 0 0-3l2-1.6-2-3.4-2.5 1a8 8 0 0 0-2.6-1.5L13.7 2h-4l-.4 3a8 8 0 0 0-2.6 1.5l-2.5-1-2 3.4 2 1.6a7.8 7.8 0 0 0 0 3l-2 1.6 2 3.4 2.5-1A8 8 0 0 0 9.3 19l.4 3h4l.4-3a8 8 0 0 0 2.6-1.5l2.5 1 2-3.4-2-1.6Z"/></svg><small>Настройки</small></button>
     </nav>
     <aside className="sidebar">
-      {sidebarView === SidebarView.Settings ? <div className="settings-panel"><h1>Настройки</h1><h2>Подключение</h2><ConnectionForm /></div> : <>
+      {sidebarView === SidebarView.Settings ? <div className="settings-panel"><h1>Настройки</h1><section className="settings-section" aria-labelledby="data-loading-settings"><h2 id="data-loading-settings">Загрузка данных</h2><label className="settings-switch"><input type="checkbox" checked={autoFetchEnabled} aria-describedby="auto-fetch-warning" onChange={(event) => { setAutoFetchEnabled(event.currentTarget.checked); }} /><span className="settings-switch-control" aria-hidden="true" /><span>Автозагрузка данных чатов</span></label><p className="settings-warning" id="auto-fetch-warning">В фоне загружаются история, статусы и аватары всех чатов. Это может расходовать лимиты тарифа GREEN-API.</p></section><section className="settings-section" aria-labelledby="connection-settings"><h2 id="connection-settings">Подключение</h2><ConnectionForm /></section></div> : <>
         <div className="sidebar-top">
           <div className="brand compact"><strong>{sidebarTitle(sidebarView)}</strong><button className="new-chat-button" aria-label="Добавить новый чат" onClick={() => { setNewChatOpen(true); }}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg></button></div>
           <label className="chat-search"><span className="sr-only">Поиск чатов</span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><input value={searchQuery} onChange={(event) => { setSearchQuery(event.target.value); }} placeholder="Найти" /></label>

@@ -5,8 +5,19 @@ import { isChatId, isDirectChatId, type ChatId } from "@domain/chatId";
 import type { AppliedSession } from "@domain/connection";
 import { checkAccountEndpoint, deleteNotificationEndpoint, getChatHistoryEndpoint, getChatsEndpoint, getContactInfoEndpoint, receiveNotificationEndpoint, sendImageEndpoint, sendMessageEndpoint } from "@infrastructure/greenApi/endpoints";
 import { acknowledgementError, mapFetchError, mapHttpError, protocolError } from "@infrastructure/greenApi/mapFetchError";
-import { chatHistoryResponseSchema, chatsResponseSchema, checkAccountResponseSchema, contactInfoResponseSchema, deleteResponseSchema, notificationBodySchema, notificationEnvelopeSchema, sendResponseSchema } from "@infrastructure/greenApi/schemas";
+import { chatHistoryMessageSchema, chatsResponseSchema, checkAccountResponseSchema, contactInfoResponseSchema, deleteResponseSchema, notificationBodySchema, notificationEnvelopeSchema, sendResponseSchema } from "@infrastructure/greenApi/schemas";
 import type { ChatHistoryResponseItem } from "@infrastructure/greenApi/schemas";
+
+function normalizeAvatarUrl(value: string | null | undefined): string | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed) return undefined;
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "https:" || url.protocol === "http:" ? trimmed : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 const DEFAULT_RECEIVE_TIMEOUT_SECONDS = 20;
 const MIN_RECEIVE_TIMEOUT_SECONDS = 5;
@@ -128,7 +139,7 @@ export class FetchGreenApiClient implements GreenApiPort {
       const rawLastSeen = parsed.data.lastSeen;
       const lastSeen = rawLastSeen === null || rawLastSeen === undefined ? null : Number(rawLastSeen);
       const name = parsed.data.contactName?.trim() || parsed.data.name?.trim() || undefined;
-      const avatarUrl = parsed.data.avatar?.trim() || undefined;
+      const avatarUrl = normalizeAvatarUrl(parsed.data.avatar);
       return { ok: true, value: { lastSeen: typeof lastSeen === "number" && Number.isFinite(lastSeen) && lastSeen > 0 ? lastSeen : null, ...(name ? { name } : {}), ...(avatarUrl ? { avatarUrl } : {}) } };
     } catch (error) {
       return { ok: false, error: mapClientError(error) };
@@ -152,10 +163,12 @@ export class FetchGreenApiClient implements GreenApiPort {
     try {
       const response = await fetch(getChatHistoryEndpoint(session), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chatId, count }), signal: signal ?? null });
       if (!response.ok) return { ok: false, error: mapHttpError(response) };
-      const parsed = chatHistoryResponseSchema.safeParse(await parseJson(response));
-      if (!parsed.success) return { ok: false, error: protocolError() };
-      return { ok: true, value: parsed.data.flatMap((message) => {
-        const mapped = toHistoryMessage(message);
+      const payload = await parseJson(response);
+      if (!Array.isArray(payload)) return { ok: false, error: protocolError() };
+      return { ok: true, value: payload.flatMap((item) => {
+        const parsed = chatHistoryMessageSchema.safeParse(item);
+        if (!parsed.success) return [];
+        const mapped = toHistoryMessage(parsed.data);
         return mapped ? [mapped] : [];
       }) };
     } catch (error) {

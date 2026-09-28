@@ -1,4 +1,4 @@
-import { ChatHistoryPhase, createConversationState, SEEN_INBOUND_LIMIT } from "@application/conversations/conversationState";
+import { ChatHistoryPhase, createConversationState, ResourcePhase, SEEN_INBOUND_LIMIT } from "@application/conversations/conversationState";
 import type { Conversation, ConversationState, OutgoingMessage } from "@application/conversations/conversationState";
 import type { AppError } from "@application/errors/AppError";
 import type { ClassifiedNotification } from "@application/notifications/notificationTypes";
@@ -8,13 +8,21 @@ import type { ChatId } from "@domain/chatId";
 export type ConversationAction =
   | { readonly type: "session-applied"; readonly sessionId: string }
   | { readonly type: "conversation-created"; readonly chatId: ChatId; readonly label: string }
+  | { readonly type: "conversations-loading" }
   | { readonly type: "conversations-loaded"; readonly conversations: readonly ChatSummary[] }
+  | { readonly type: "conversations-failed"; readonly error?: AppError }
+  | { readonly type: "conversations-cancelled" }
   | { readonly type: "conversation-activated"; readonly chatId: ChatId }
+  | { readonly type: "read-boundary-consumed"; readonly chatId: ChatId; readonly messageId: string }
   | { readonly type: "conversation-closed" }
-  | { readonly type: "contact-info-loaded"; readonly chatId: ChatId; readonly name?: string; readonly avatarUrl?: string }
+  | { readonly type: "contact-info-loading"; readonly chatId: ChatId }
+  | { readonly type: "contact-info-loaded"; readonly chatId: ChatId; readonly lastSeen?: number | null; readonly name?: string; readonly avatarUrl?: string }
+  | { readonly type: "contact-info-failed"; readonly chatId: ChatId; readonly error: AppError }
+  | { readonly type: "contact-info-cancelled"; readonly chatId: ChatId }
   | { readonly type: "history-loading"; readonly chatId: ChatId }
   | { readonly type: "history-loaded"; readonly chatId: ChatId; readonly messages: readonly ChatHistoryMessage[] }
   | { readonly type: "history-failed"; readonly chatId: ChatId; readonly error: AppError }
+  | { readonly type: "history-cancelled"; readonly chatId: ChatId }
   | { readonly type: "notification-classified"; readonly notification: ClassifiedNotification; readonly localId?: string }
   | { readonly type: "outgoing-created"; readonly chatId: ChatId; readonly localId: string; readonly attemptId: string; readonly text: string; readonly createdAt: number; readonly imageUrl?: string; readonly imageFile?: File; readonly fileName?: string; readonly mimeType?: string }
   | { readonly type: "outgoing-sent"; readonly chatId: ChatId; readonly localId: string; readonly attemptId: string; readonly idMessage: string }
@@ -32,6 +40,8 @@ function addConversation(state: ConversationState, chatId: ChatId, label: string
     conversationsById: { ...state.conversationsById, [chatId]: conversation },
     conversationOrder: [...state.conversationOrder, chatId],
     messageIdsByChatId: { ...state.messageIdsByChatId, [chatId]: [] },
+    historyByChatId: { ...state.historyByChatId, [chatId]: { phase: ResourcePhase.Idle } },
+    contactsByChatId: { ...state.contactsByChatId, [chatId]: { phase: ResourcePhase.Idle } },
     activeChatId: activate ? chatId : state.activeChatId,
   };
 }
@@ -53,6 +63,8 @@ function recordConversations(state: ConversationState, summaries: readonly ChatS
   const conversationsById = { ...state.conversationsById };
   const conversationOrder = [...state.conversationOrder];
   const messageIdsByChatId = { ...state.messageIdsByChatId };
+  const historyByChatId = { ...state.historyByChatId };
+  const contactsByChatId = { ...state.contactsByChatId };
   for (const summary of summaries) {
     const existing = conversationsById[summary.chatId];
     conversationsById[summary.chatId] = existing
@@ -60,8 +72,10 @@ function recordConversations(state: ConversationState, summaries: readonly ChatS
       : { chatId: summary.chatId, label: summary.name.trim() || `Чат ${summary.chatId}`, unreadCount: 0 };
     if (!existing) conversationOrder.push(summary.chatId);
     messageIdsByChatId[summary.chatId] ??= [];
+    historyByChatId[summary.chatId] ??= { phase: ResourcePhase.Idle };
+    contactsByChatId[summary.chatId] ??= { phase: ResourcePhase.Idle };
   }
-  return { ...state, conversationsById, conversationOrder, messageIdsByChatId };
+  return { ...state, conversationsById, conversationOrder, messageIdsByChatId, historyByChatId, contactsByChatId };
 }
 
 function recordHistory(state: ConversationState, chatId: ChatId, history: readonly ChatHistoryMessage[]): ConversationState {
@@ -118,6 +132,15 @@ function updateOutgoing(
   return { ...state, messagesById: { ...state.messagesById, [localId]: update(message) } };
 }
 
+function retainContactData(contact: ConversationState["contactsByChatId"][string] | undefined) {
+  if (!contact) return {};
+  return {
+    ...(contact.lastSeen !== undefined ? { lastSeen: contact.lastSeen } : {}),
+    ...(contact.name !== undefined ? { name: contact.name } : {}),
+    ...(contact.avatarUrl !== undefined ? { avatarUrl: contact.avatarUrl } : {}),
+  };
+}
+
 function recordIncoming(
   state: ConversationState,
   notification: Extract<ClassifiedNotification, { kind: "direct-text" | "direct-image" }>,
@@ -149,12 +172,14 @@ function recordIncomingWithSeenState(
 ): ConversationState {
   const conversation = next.conversationsById[notification.chatId];
   if (!conversation) return next;
+  const previousMessageId = next.messageIdsByChatId[notification.chatId]?.at(-1);
   const unreadCount = next.activeChatId === notification.chatId ? conversation.unreadCount : conversation.unreadCount + 1;
+  const shouldRecordReadPosition = next.activeChatId !== notification.chatId && conversation.unreadCount === 0 && previousMessageId !== undefined;
   return {
     ...next,
-    conversationsById: unreadCount === conversation.unreadCount ? next.conversationsById : {
+    conversationsById: unreadCount === conversation.unreadCount && !shouldRecordReadPosition ? next.conversationsById : {
       ...next.conversationsById,
-      [notification.chatId]: { ...conversation, unreadCount },
+      [notification.chatId]: { ...conversation, unreadCount, ...(shouldRecordReadPosition ? { lastReadMessageId: previousMessageId } : {}) },
     },
     messagesById: {
       ...next.messagesById,
@@ -184,20 +209,102 @@ function recordIncomingWithSeenState(
 
 export function conversationReducer(state: ConversationState, action: ConversationAction): ConversationState {
   switch (action.type) {
-    case "session-applied":
-      return createConversationState(action.sessionId);
+    case "session-applied": {
+      const next = createConversationState(action.sessionId);
+      return {
+        ...next,
+        conversationList: { phase: ResourcePhase.Loading },
+      };
+    }
     case "conversation-created":
       return addConversation(state, action.chatId, action.label, true);
+    case "conversations-loading":
+      return {
+        ...state,
+        conversationList: { phase: ResourcePhase.Loading },
+      };
     case "conversations-loaded":
-      return recordConversations(state, action.conversations);
+      return {
+        ...recordConversations(state, action.conversations),
+        conversationList: { phase: ResourcePhase.Loaded },
+      };
+    case "conversations-failed":
+      return {
+        ...state,
+        conversationList: { phase: ResourcePhase.Error, ...(action.error ? { error: action.error } : {}) },
+      };
+    case "conversations-cancelled":
+      return state.conversationList.phase !== ResourcePhase.Loading ? state : {
+        ...state,
+        conversationList: { phase: ResourcePhase.Idle },
+      };
     case "conversation-activated":
       return activateConversation(state, action.chatId);
+    case "read-boundary-consumed": {
+      const conversation = state.conversationsById[action.chatId];
+      if (!conversation || conversation.lastReadMessageId !== action.messageId) return state;
+      const consumed = { ...conversation };
+      delete consumed.lastReadMessageId;
+      return {
+        ...state,
+        conversationsById: { ...state.conversationsById, [action.chatId]: consumed },
+      };
+    }
     case "conversation-closed":
       return state.activeChatId === null ? state : { ...state, activeChatId: null };
+    case "contact-info-loading": {
+      const existing = state.contactsByChatId[action.chatId];
+      return {
+        ...state,
+        contactsByChatId: {
+          ...state.contactsByChatId,
+          [action.chatId]: { ...retainContactData(existing), phase: ResourcePhase.Loading },
+        },
+      };
+    }
     case "contact-info-loaded": {
       const conversation = state.conversationsById[action.chatId];
-      if (!conversation) return state;
-      return { ...state, conversationsById: { ...state.conversationsById, [action.chatId]: { ...conversation, ...(action.name ? { label: action.name } : {}), ...(action.avatarUrl ? { avatarUrl: action.avatarUrl } : {}) } } };
+      const existing = state.contactsByChatId[action.chatId];
+      const contact = {
+        ...retainContactData(existing),
+        phase: ResourcePhase.Loaded,
+        ...(action.lastSeen !== undefined ? { lastSeen: action.lastSeen } : {}),
+        ...(action.name !== undefined ? { name: action.name } : {}),
+        ...(action.avatarUrl !== undefined ? { avatarUrl: action.avatarUrl } : {}),
+      } as const;
+      return {
+        ...state,
+        contactsByChatId: { ...state.contactsByChatId, [action.chatId]: contact },
+        conversationsById: !conversation ? state.conversationsById : {
+          ...state.conversationsById,
+          [action.chatId]: {
+            ...conversation,
+            ...(action.name ? { label: action.name } : {}),
+            ...(action.avatarUrl ? { avatarUrl: action.avatarUrl } : {}),
+          },
+        },
+      };
+    }
+    case "contact-info-failed": {
+      const existing = state.contactsByChatId[action.chatId];
+      return {
+        ...state,
+        contactsByChatId: {
+          ...state.contactsByChatId,
+          [action.chatId]: { ...existing, phase: ResourcePhase.Error, error: action.error },
+        },
+      };
+    }
+    case "contact-info-cancelled": {
+      const existing = state.contactsByChatId[action.chatId];
+      if (!existing || existing.phase !== ResourcePhase.Loading) return state;
+      return {
+        ...state,
+        contactsByChatId: {
+          ...state.contactsByChatId,
+          [action.chatId]: { ...retainContactData(existing), phase: ResourcePhase.Idle },
+        },
+      };
     }
     case "history-loading":
       return { ...state, historyByChatId: { ...state.historyByChatId, [action.chatId]: { phase: ChatHistoryPhase.Loading } } };
@@ -205,6 +312,11 @@ export function conversationReducer(state: ConversationState, action: Conversati
       return recordHistory(state, action.chatId, action.messages);
     case "history-failed":
       return { ...state, historyByChatId: { ...state.historyByChatId, [action.chatId]: { phase: ChatHistoryPhase.Error, error: action.error } } };
+    case "history-cancelled":
+      return state.historyByChatId[action.chatId]?.phase !== ChatHistoryPhase.Loading ? state : {
+        ...state,
+        historyByChatId: { ...state.historyByChatId, [action.chatId]: { phase: ChatHistoryPhase.Idle } },
+      };
     case "notification-classified": {
       if (action.notification.kind === "direct-text" || action.notification.kind === "direct-image") {
         return recordIncoming(state, action.notification, action.localId ?? `${action.notification.chatId}:${action.notification.idMessage}`);
