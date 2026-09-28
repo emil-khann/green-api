@@ -14,7 +14,33 @@ export interface NotificationEnvelope {
 }
 
 export type ClassifiedNotification =
-  | { readonly kind: "direct-text"; readonly idMessage: string; readonly chatId: ChatId; readonly text: string; readonly receivedAt: number; readonly senderName?: string }
-  | { readonly kind: "direct-image"; readonly idMessage: string; readonly chatId: ChatId; readonly imageUrl: string; readonly text: string; readonly receivedAt: number; readonly senderName?: string; readonly fileName?: string; readonly mimeType?: string }
-  | { readonly kind: "ignored"; readonly reason: "unsupported-sender" | "unsupported-type" }
-  | { readonly kind: "malformed"; readonly reason: "missing-message-id" | "missing-text" | "missing-media-url" };
+  | {
+      readonly kind: "direct-text";
+      readonly idMessage: string;
+      readonly chatId: ChatId;
+      readonly text: string;
+      readonly receivedAt: number;
+      readonly senderName?: string;
+    }
+  | {
+      readonly kind: "direct-image";
+      readonly idMessage: string;
+      readonly chatId: ChatId;
+      readonly imageUrl: string;
+      readonly text: string;
+      readonly receivedAt: number;
+      readonly senderName?: string;
+      readonly fileName?: string;
+      readonly mimeType?: string;
+    }
+  | {
+      readonly kind: "ignored";
+      readonly reason: "unsupported-sender" | "unsupported-type";
+    }
+  | {
+      readonly kind: "malformed";
+      readonly reason:
+        | "missing-message-id"
+        | "missing-text"
+        | "missing-media-url";
+    };

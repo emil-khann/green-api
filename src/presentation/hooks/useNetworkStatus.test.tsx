@@ -10,9 +10,15 @@ describe("useNetworkStatus", () => {
     setOnline(false);
     const { result } = renderHook(() => useNetworkStatus());
     expect(result.current).toBe(false);
-    act(() => { setOnline(true); window.dispatchEvent(new Event("online")); });
+    act(() => {
+      setOnline(true);
+      window.dispatchEvent(new Event("online"));
+    });
     expect(result.current).toBe(true);
-    act(() => { setOnline(false); window.dispatchEvent(new Event("offline")); });
+    act(() => {
+      setOnline(false);
+      window.dispatchEvent(new Event("offline"));
+    });
     expect(result.current).toBe(false);
   });
 
@@ -27,4 +33,3 @@ describe("useNetworkStatus", () => {
     expect(remove).toHaveBeenCalledWith("offline", expect.any(Function));
   });
 });
-

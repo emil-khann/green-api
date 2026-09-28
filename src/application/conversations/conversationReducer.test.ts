@@ -1,16 +1,44 @@
 import { conversationReducer } from "@application/conversations/conversationReducer";
-import { ChatHistoryPhase, createConversationState, ResourcePhase, SEEN_INBOUND_LIMIT } from "@application/conversations/conversationState";
+import {
+  ChatHistoryPhase,
+  createConversationState,
+  ResourcePhase,
+  SEEN_INBOUND_LIMIT,
+} from "@application/conversations/conversationState";
 import type { ChatId } from "@domain/chatId";
 
 const alice = "10000001" as ChatId;
 const bob = "10000002" as ChatId;
-const networkError = { kind: "network", safeMessage: "Нет соединения.", retryable: true } as const;
+const networkError = {
+  kind: "network",
+  safeMessage: "Нет соединения.",
+  retryable: true,
+} as const;
 
-const create = (state: ReturnType<typeof createConversationState>, chatId: ChatId, label = "Contact") =>
+const create = (
+  state: ReturnType<typeof createConversationState>,
+  chatId: ChatId,
+  label = "Contact",
+) =>
   conversationReducer(state, { type: "conversation-created", chatId, label });
 
-const incoming = (state: ReturnType<typeof createConversationState>, chatId: ChatId, idMessage: string, localId = `local-${idMessage}`) =>
-  conversationReducer(state, { type: "notification-classified", localId, notification: { kind: "direct-text", chatId, idMessage, text: idMessage, receivedAt: 1 } });
+const incoming = (
+  state: ReturnType<typeof createConversationState>,
+  chatId: ChatId,
+  idMessage: string,
+  localId = `local-${idMessage}`,
+) =>
+  conversationReducer(state, {
+    type: "notification-classified",
+    localId,
+    notification: {
+      kind: "direct-text",
+      chatId,
+      idMessage,
+      text: idMessage,
+      receivedAt: 1,
+    },
+  });
 
 describe("conversationReducer", () => {
   test("creating a duplicate conversation activates the existing record without duplicating order", () => {
@@ -27,43 +55,75 @@ describe("conversationReducer", () => {
     state = incoming(state, bob, "b-1");
     expect(state.conversationsById[alice]?.unreadCount).toBe(1);
     expect(state.conversationsById[bob]?.unreadCount).toBe(0);
-    state = conversationReducer(state, { type: "conversation-activated", chatId: alice });
+    state = conversationReducer(state, {
+      type: "conversation-activated",
+      chatId: alice,
+    });
     expect(state.conversationsById[alice]?.unreadCount).toBe(0);
     expect(state.conversationsById[bob]?.unreadCount).toBe(0);
   });
 
   test("records the last read message before an inactive chat receives new messages", () => {
-    let state = incoming(create(createConversationState(), alice), alice, "read");
+    let state = incoming(
+      create(createConversationState(), alice),
+      alice,
+      "read",
+    );
     state = conversationReducer(state, { type: "conversation-closed" });
     state = incoming(state, alice, "new");
-    expect(state.conversationsById[alice]?.lastReadMessageId).toBe("local-read");
+    expect(state.conversationsById[alice]?.lastReadMessageId).toBe(
+      "local-read",
+    );
   });
 
   test("consumes a read boundary once and records a new boundary for a later unread segment", () => {
-    let state = incoming(create(createConversationState(), alice), alice, "read-1");
+    let state = incoming(
+      create(createConversationState(), alice),
+      alice,
+      "read-1",
+    );
     state = conversationReducer(state, { type: "conversation-closed" });
     state = incoming(state, alice, "unread-1");
-    expect(state.conversationsById[alice]).toMatchObject({ unreadCount: 1, lastReadMessageId: "local-read-1" });
+    expect(state.conversationsById[alice]).toMatchObject({
+      unreadCount: 1,
+      lastReadMessageId: "local-read-1",
+    });
 
-    state = conversationReducer(state, { type: "conversation-activated", chatId: alice });
-    state = conversationReducer(state, { type: "read-boundary-consumed", chatId: alice, messageId: "local-read-1" });
+    state = conversationReducer(state, {
+      type: "conversation-activated",
+      chatId: alice,
+    });
+    state = conversationReducer(state, {
+      type: "read-boundary-consumed",
+      chatId: alice,
+      messageId: "local-read-1",
+    });
     expect(state.conversationsById[alice]).toMatchObject({ unreadCount: 0 });
     expect(state.conversationsById[alice]?.lastReadMessageId).toBeUndefined();
 
     state = conversationReducer(state, { type: "conversation-closed" });
     state = incoming(state, alice, "unread-2");
-    expect(state.conversationsById[alice]).toMatchObject({ unreadCount: 1, lastReadMessageId: "local-unread-1" });
+    expect(state.conversationsById[alice]).toMatchObject({
+      unreadCount: 1,
+      lastReadMessageId: "local-unread-1",
+    });
   });
 
   test("unknown direct sender creates a labeled conversation without stealing active chat", () => {
     let state = create(createConversationState(), alice, "Alice");
     state = incoming(state, bob, "b-1");
     expect(state.activeChatId).toBe(alice);
-    expect(state.conversationsById[bob]).toMatchObject({ label: `Чат ${bob}`, unreadCount: 1 });
+    expect(state.conversationsById[bob]).toMatchObject({
+      label: `Чат ${bob}`,
+      unreadCount: 1,
+    });
   });
 
   test("ignored group sender does not create a conversation", () => {
-    const state = conversationReducer(createConversationState(), { type: "notification-classified", notification: { kind: "ignored", reason: "unsupported-sender" } });
+    const state = conversationReducer(createConversationState(), {
+      type: "notification-classified",
+      notification: { kind: "ignored", reason: "unsupported-sender" },
+    });
     expect(state.conversationOrder).toEqual([]);
     expect(state.diagnostics.ignoredNotifications).toBe(1);
   });
@@ -77,7 +137,9 @@ describe("conversationReducer", () => {
 
   test("evicts oldest dedupe keys at the bounded-memory limit", () => {
     let state = createConversationState();
-    for (let index = 0; index <= SEEN_INBOUND_LIMIT; index += 1) state = incoming(state, alice, `id-${String(index)}`);
+    for (let index = 0; index <= SEEN_INBOUND_LIMIT; index += 1) {
+      state = incoming(state, alice, `id-${String(index)}`);
+    }
     expect(state.seenInboundOrder).toHaveLength(SEEN_INBOUND_LIMIT);
     expect(state.seenInboundIds[`${alice}:id-0`]).toBeUndefined();
     state = incoming(state, alice, "id-0", "replayed-oldest");
@@ -86,32 +148,111 @@ describe("conversationReducer", () => {
 
   test("concurrent sends and completions remain attached to their original chats after switching", () => {
     let state = create(create(createConversationState(), alice), bob);
-    state = conversationReducer(state, { type: "outgoing-created", chatId: alice, localId: "local-a", attemptId: "attempt-a", text: "A", createdAt: 1 });
-    state = conversationReducer(state, { type: "outgoing-created", chatId: bob, localId: "local-b", attemptId: "attempt-b", text: "B", createdAt: 2 });
-    state = conversationReducer(state, { type: "conversation-activated", chatId: bob });
-    state = conversationReducer(state, { type: "outgoing-sent", chatId: alice, localId: "local-a", attemptId: "attempt-a", idMessage: "remote-a" });
-    expect(state.messagesById["local-a"]).toMatchObject({ chatId: alice, status: "sent", idMessage: "remote-a" });
-    expect(state.messagesById["local-b"]).toMatchObject({ chatId: bob, status: "pending" });
+    state = conversationReducer(state, {
+      type: "outgoing-created",
+      chatId: alice,
+      localId: "local-a",
+      attemptId: "attempt-a",
+      text: "A",
+      createdAt: 1,
+    });
+    state = conversationReducer(state, {
+      type: "outgoing-created",
+      chatId: bob,
+      localId: "local-b",
+      attemptId: "attempt-b",
+      text: "B",
+      createdAt: 2,
+    });
+    state = conversationReducer(state, {
+      type: "conversation-activated",
+      chatId: bob,
+    });
+    state = conversationReducer(state, {
+      type: "outgoing-sent",
+      chatId: alice,
+      localId: "local-a",
+      attemptId: "attempt-a",
+      idMessage: "remote-a",
+    });
+    expect(state.messagesById["local-a"]).toMatchObject({
+      chatId: alice,
+      status: "sent",
+      idMessage: "remote-a",
+    });
+    expect(state.messagesById["local-b"]).toMatchObject({
+      chatId: bob,
+      status: "pending",
+    });
   });
 
   test("retry replaces the attempt and ignores a late result from the stale attempt", () => {
     let state = create(createConversationState(), alice);
-    state = conversationReducer(state, { type: "outgoing-created", chatId: alice, localId: "local", attemptId: "attempt-1", text: "Hi", createdAt: 1 });
-    state = conversationReducer(state, { type: "outgoing-failed", chatId: alice, localId: "local", attemptId: "attempt-1", error: networkError });
-    state = conversationReducer(state, { type: "outgoing-retried", chatId: alice, localId: "local", attemptId: "attempt-2" });
+    state = conversationReducer(state, {
+      type: "outgoing-created",
+      chatId: alice,
+      localId: "local",
+      attemptId: "attempt-1",
+      text: "Hi",
+      createdAt: 1,
+    });
+    state = conversationReducer(state, {
+      type: "outgoing-failed",
+      chatId: alice,
+      localId: "local",
+      attemptId: "attempt-1",
+      error: networkError,
+    });
+    state = conversationReducer(state, {
+      type: "outgoing-retried",
+      chatId: alice,
+      localId: "local",
+      attemptId: "attempt-2",
+    });
     const beforeLateResult = state;
-    state = conversationReducer(state, { type: "outgoing-sent", chatId: alice, localId: "local", attemptId: "attempt-1", idMessage: "stale" });
+    state = conversationReducer(state, {
+      type: "outgoing-sent",
+      chatId: alice,
+      localId: "local",
+      attemptId: "attempt-1",
+      idMessage: "stale",
+    });
     expect(state).toBe(beforeLateResult);
-    state = conversationReducer(state, { type: "outgoing-sent", chatId: alice, localId: "local", attemptId: "attempt-2", idMessage: "fresh" });
-    expect(state.messagesById["local"]).toMatchObject({ status: "sent", idMessage: "fresh", attemptId: "attempt-2" });
+    state = conversationReducer(state, {
+      type: "outgoing-sent",
+      chatId: alice,
+      localId: "local",
+      attemptId: "attempt-2",
+      idMessage: "fresh",
+    });
+    expect(state.messagesById["local"]).toMatchObject({
+      status: "sent",
+      idMessage: "fresh",
+      attemptId: "attempt-2",
+    });
   });
 
   test("applying a new session atomically clears chats, messages, dedupe and diagnostics", () => {
     let state = incoming(createConversationState("old"), alice, "a-1");
-    state = conversationReducer(state, { type: "contact-info-loaded", chatId: alice, name: "Alice", avatarUrl: "https://example.com/alice.jpg", lastSeen: 42 });
-    state = conversationReducer(state, { type: "history-loading", chatId: alice });
-    state = conversationReducer(state, { type: "notification-classified", notification: { kind: "malformed", reason: "missing-text" } });
-    state = conversationReducer(state, { type: "session-applied", sessionId: "new" });
+    state = conversationReducer(state, {
+      type: "contact-info-loaded",
+      chatId: alice,
+      name: "Alice",
+      avatarUrl: "https://example.com/alice.jpg",
+      lastSeen: 42,
+    });
+    state = conversationReducer(state, {
+      type: "history-loading",
+      chatId: alice,
+    });
+    state = conversationReducer(state, {
+      type: "notification-classified",
+      notification: { kind: "malformed", reason: "missing-text" },
+    });
+    state = conversationReducer(state, {
+      type: "session-applied",
+      sessionId: "new",
+    });
     expect(state).toEqual({
       ...createConversationState("new"),
       conversationList: { phase: ResourcePhase.Loading },
@@ -119,36 +260,68 @@ describe("conversationReducer", () => {
   });
 
   test("tracks chat-list loading, loaded and failed states with their error", () => {
-    let state = conversationReducer(createConversationState(), { type: "conversations-loading" });
+    let state = conversationReducer(createConversationState(), {
+      type: "conversations-loading",
+    });
     expect(state.conversationList).toEqual({ phase: ResourcePhase.Loading });
 
     state = conversationReducer(state, {
       type: "conversations-loaded",
-      conversations: [{ chatId: alice, name: "Alice", type: "user", phoneNumber: 10_000_001 }],
+      conversations: [
+        { chatId: alice, name: "Alice", type: "user", phoneNumber: 10_000_001 },
+      ],
     });
     expect(state.conversationList).toEqual({ phase: ResourcePhase.Loaded });
     expect(state.conversationsById[alice]?.label).toBe("Alice");
     expect(state.historyByChatId[alice]).toEqual({ phase: ResourcePhase.Idle });
-    expect(state.contactsByChatId[alice]).toEqual({ phase: ResourcePhase.Idle });
+    expect(state.contactsByChatId[alice]).toEqual({
+      phase: ResourcePhase.Idle,
+    });
 
-    state = conversationReducer(state, { type: "conversations-failed", error: networkError });
-    expect(state.conversationList).toEqual({ phase: ResourcePhase.Error, error: networkError });
+    state = conversationReducer(state, {
+      type: "conversations-failed",
+      error: networkError,
+    });
+    expect(state.conversationList).toEqual({
+      phase: ResourcePhase.Error,
+      error: networkError,
+    });
     expect(state.conversationsById[alice]?.label).toBe("Alice");
   });
 
   test("a successfully loaded empty history is distinct from idle and error", () => {
     let state = create(createConversationState(), alice);
-    expect(state.historyByChatId[alice]).toEqual({ phase: ChatHistoryPhase.Idle });
+    expect(state.historyByChatId[alice]).toEqual({
+      phase: ChatHistoryPhase.Idle,
+    });
 
-    state = conversationReducer(state, { type: "history-loading", chatId: alice });
-    expect(state.historyByChatId[alice]).toEqual({ phase: ChatHistoryPhase.Loading });
+    state = conversationReducer(state, {
+      type: "history-loading",
+      chatId: alice,
+    });
+    expect(state.historyByChatId[alice]).toEqual({
+      phase: ChatHistoryPhase.Loading,
+    });
 
-    state = conversationReducer(state, { type: "history-loaded", chatId: alice, messages: [] });
-    expect(state.historyByChatId[alice]).toEqual({ phase: ChatHistoryPhase.Loaded });
+    state = conversationReducer(state, {
+      type: "history-loaded",
+      chatId: alice,
+      messages: [],
+    });
+    expect(state.historyByChatId[alice]).toEqual({
+      phase: ChatHistoryPhase.Loaded,
+    });
     expect(state.messageIdsByChatId[alice]).toEqual([]);
 
-    state = conversationReducer(state, { type: "history-failed", chatId: alice, error: networkError });
-    expect(state.historyByChatId[alice]).toEqual({ phase: ChatHistoryPhase.Error, error: networkError });
+    state = conversationReducer(state, {
+      type: "history-failed",
+      chatId: alice,
+      error: networkError,
+    });
+    expect(state.historyByChatId[alice]).toEqual({
+      phase: ChatHistoryPhase.Error,
+      error: networkError,
+    });
   });
 
   test("contact refresh errors retain the last successful status, name and avatar", () => {
@@ -166,12 +339,26 @@ describe("conversationReducer", () => {
       name: "Alice",
       avatarUrl: "https://example.com/alice.jpg",
     });
-    expect(state.conversationsById[alice]).toMatchObject({ label: "Alice", avatarUrl: "https://example.com/alice.jpg" });
+    expect(state.conversationsById[alice]).toMatchObject({
+      label: "Alice",
+      avatarUrl: "https://example.com/alice.jpg",
+    });
 
-    state = conversationReducer(state, { type: "contact-info-loading", chatId: alice });
-    expect(state.contactsByChatId[alice]).toMatchObject({ phase: ResourcePhase.Loading, lastSeen: 123, name: "Alice" });
+    state = conversationReducer(state, {
+      type: "contact-info-loading",
+      chatId: alice,
+    });
+    expect(state.contactsByChatId[alice]).toMatchObject({
+      phase: ResourcePhase.Loading,
+      lastSeen: 123,
+      name: "Alice",
+    });
 
-    state = conversationReducer(state, { type: "contact-info-failed", chatId: alice, error: networkError });
+    state = conversationReducer(state, {
+      type: "contact-info-failed",
+      chatId: alice,
+      error: networkError,
+    });
     expect(state.contactsByChatId[alice]).toEqual({
       phase: ResourcePhase.Error,
       error: networkError,
@@ -179,6 +366,9 @@ describe("conversationReducer", () => {
       name: "Alice",
       avatarUrl: "https://example.com/alice.jpg",
     });
-    expect(state.conversationsById[alice]).toMatchObject({ label: "Alice", avatarUrl: "https://example.com/alice.jpg" });
+    expect(state.conversationsById[alice]).toMatchObject({
+      label: "Alice",
+      avatarUrl: "https://example.com/alice.jpg",
+    });
   });
 });

@@ -30,12 +30,21 @@ export function getChatHistoryEndpoint(session: AppliedSession): string {
   return `${instanceBase(session)}/getChatHistory/${segment(session.apiTokenInstance)}`;
 }
 
-export function receiveNotificationEndpoint(session: AppliedSession, receiveTimeout: number): string {
-  const url = new URL(`${instanceBase(session)}/receiveNotification/${segment(session.apiTokenInstance)}`);
+export function receiveNotificationEndpoint(
+  session: AppliedSession,
+  receiveTimeout: number,
+): string {
+  const url = new URL(
+    `${instanceBase(session)}/receiveNotification/${segment(session.apiTokenInstance)}`,
+  );
   url.searchParams.set("receiveTimeout", String(receiveTimeout));
+
   return url.toString();
 }
 
-export function deleteNotificationEndpoint(session: AppliedSession, receiptId: number): string {
+export function deleteNotificationEndpoint(
+  session: AppliedSession,
+  receiptId: number,
+): string {
   return `${instanceBase(session)}/deleteNotification/${segment(session.apiTokenInstance)}/${String(receiptId)}`;
 }

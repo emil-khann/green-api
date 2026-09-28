@@ -9,7 +9,8 @@ const restrictedImports = (groups) => [
   {
     patterns: groups.map((group) => ({
       group: [group, `${group}/*`],
-      message: "Import direction violates the domain → application → adapters architecture.",
+      message:
+        "Import direction violates the domain → application → adapters architecture.",
     })),
   },
 ];
@@ -33,7 +34,47 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
+      curly: ["error", "all"],
+      eqeqeq: ["error", "always"],
+      "lines-between-class-members": [
+        "error",
+        "always",
+        { exceptAfterSingleLine: true },
+      ],
+      "logical-assignment-operators": ["error", "always"],
+      "max-len": [
+        "error",
+        {
+          code: 120,
+          ignoreRegExpLiterals: true,
+          ignoreUrls: true,
+        },
+      ],
+      "newline-per-chained-call": [
+        "error",
+        { ignoreChainWithDepth: 2 },
+      ],
+      "no-else-return": ["error", { allowElseIf: false }],
+      "no-lonely-if": "error",
+      "no-multi-assign": "error",
+      "object-shorthand": ["error", "always"],
+      "one-var": ["error", "never"],
+      "operator-assignment": ["error", "always"],
+      "padding-line-between-statements": [
+        "error",
+        { blankLine: "always", prev: "*", next: "return" },
+        { blankLine: "always", prev: "import", next: "*" },
+        { blankLine: "never", prev: "import", next: "import" },
+        { blankLine: "always", prev: "*", next: "function" },
+        { blankLine: "always", prev: "function", next: "*" },
+        { blankLine: "always", prev: "*", next: "class" },
+        { blankLine: "always", prev: "class", next: "*" },
+      ],
+      "prefer-template": "error",
+      "react-refresh/only-export-components": [
+        "warn",
+        { allowConstantExport: true },
+      ],
     },
   },
   {

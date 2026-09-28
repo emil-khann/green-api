@@ -9,12 +9,21 @@ describe("normalizePhone", () => {
     expect(normalizePhone(phone)).toEqual({ ok: true, digits });
   });
 
-  test.each(["00 44 20 7946 0958", "+12.34", "abc", "123456"])("rejects malformed phone %s", (phone) => {
-    expect(normalizePhone(phone)).toEqual({ ok: false, reason: "invalid-phone" });
-  });
+  test.each(["00 44 20 7946 0958", "+12.34", "abc", "123456"])(
+    "rejects malformed phone %s",
+    (phone) => {
+      expect(normalizePhone(phone)).toEqual({
+        ok: false,
+        reason: "invalid-phone",
+      });
+    },
+  );
 
   test("rejects a well-formed unsupported country", () => {
-    expect(normalizePhone("+44 7700 900123")).toEqual({ ok: false, reason: "unsupported-country" });
+    expect(normalizePhone("+44 7700 900123")).toEqual({
+      ok: false,
+      reason: "unsupported-country",
+    });
   });
 
   test("accepts only positive numeric MAX user chat ids", () => {

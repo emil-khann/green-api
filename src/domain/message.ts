@@ -7,8 +7,13 @@ export type MessageTextResult =
   | { readonly ok: false; readonly reason: "empty" | "too-long" };
 
 export function validateMessageText(value: string): MessageTextResult {
-  if (value.trim().length === 0) return { ok: false, reason: "empty" };
-  if (Array.from(value).length > MAX_MESSAGE_CODE_POINTS) return { ok: false, reason: "too-long" };
+  if (value.trim().length === 0) {
+    return { ok: false, reason: "empty" };
+  }
+  if (Array.from(value).length > MAX_MESSAGE_CODE_POINTS) {
+    return { ok: false, reason: "too-long" };
+  }
+
   return { ok: true, text: value };
 }
 

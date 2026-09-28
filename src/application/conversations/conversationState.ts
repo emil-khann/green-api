@@ -84,7 +84,9 @@ export interface ConversationState {
   readonly conversationList: ResourceState;
 }
 
-export function createConversationState(sessionId: string | null = null): ConversationState {
+export function createConversationState(
+  sessionId: string | null = null,
+): ConversationState {
   return {
     sessionId,
     conversationsById: {},

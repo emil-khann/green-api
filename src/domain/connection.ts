@@ -26,7 +26,10 @@ const validationError = (safeMessage: string): ConnectionResult => ({
   error: { kind: "validation", safeMessage, retryable: false },
 });
 
-export function applyConnection(draft: ConnectionDraft, sessionId: string): ConnectionResult {
+export function applyConnection(
+  draft: ConnectionDraft,
+  sessionId: string,
+): ConnectionResult {
   const normalizedSessionId = sessionId.trim();
   if (normalizedSessionId.length === 0) {
     return validationError("Не удалось создать идентификатор сессии.");
@@ -37,8 +40,16 @@ export function applyConnection(draft: ConnectionDraft, sessionId: string): Conn
   } catch {
     return validationError("Укажите корректный адрес API.");
   }
-  if (url.protocol !== "https:" || url.username !== "" || url.password !== "" || url.search !== "" || url.hash !== "") {
-    return validationError("Адрес API должен использовать HTTPS и не содержать credentials, query или hash.");
+  if (
+    url.protocol !== "https:" ||
+    url.username !== "" ||
+    url.password !== "" ||
+    url.search !== "" ||
+    url.hash !== ""
+  ) {
+    return validationError(
+      "Адрес API должен использовать HTTPS и не содержать credentials, query или hash.",
+    );
   }
   const idInstance = draft.idInstance.trim();
   if (!/^\d{1,20}$/.test(idInstance)) {
@@ -48,6 +59,7 @@ export function applyConnection(draft: ConnectionDraft, sessionId: string): Conn
   if (apiTokenInstance.length === 0) {
     return validationError("API token обязателен.");
   }
+
   return {
     ok: true,
     session: Object.freeze({
