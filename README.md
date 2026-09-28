@@ -4,7 +4,7 @@
 
 A web client for private MAX chats powered by GREEN-API. Built with React 19, TypeScript, and Vite.
 
-**[Open the live demo](https://emil-khann.github.io/green-api/)**
+<strong><a href="https://emil-khann.github.io/green-api/" target="_blank" rel="noopener noreferrer">Open the live demo</a></strong>
 
 ## Features
 

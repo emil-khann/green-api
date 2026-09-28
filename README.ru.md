@@ -4,7 +4,7 @@
 
 Веб-клиент для личных чатов MAX через GREEN-API. Проект собран на React 19, TypeScript и Vite.
 
-**[Открыть опубликованное демо](https://emil-khann.github.io/green-api/)**
+<strong><a href="https://emil-khann.github.io/green-api/" target="_blank" rel="noopener noreferrer">Открыть опубликованное демо</a></strong>
 
 ## Возможности
 
