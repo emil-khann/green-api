@@ -4,6 +4,8 @@
 
 A web client for private MAX chats powered by GREEN-API. Built with React 19, TypeScript, and Vite.
 
+**[Open the live demo](https://emil-khann.github.io/green-api/)**
+
 ## Features
 
 - automatic chat list and history loading;
@@ -67,5 +69,3 @@ Never publish real API tokens in the repository, `.env` files, screenshots, or l
 ## Architecture
 
 The codebase is divided into `domain`, `application`, `infrastructure`, and `presentation` layers. GREEN-API is accessed through the `GreenApiPort`; external responses are validated with Zod schemas, and conversation data is stored in a normalized reducer.
-
-See the [architecture overview](docs/architecture.md) and [ADRs](docs/adr/) for details.

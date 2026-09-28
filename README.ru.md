@@ -4,6 +4,8 @@
 
 Веб-клиент для личных чатов MAX через GREEN-API. Проект собран на React 19, TypeScript и Vite.
 
+**[Открыть опубликованное демо](https://emil-khann.github.io/green-api/)**
+
 ## Возможности
 
 - автоматическая загрузка списка чатов и истории;
@@ -67,5 +69,3 @@ pnpm test:e2e    # smoke-тест Playwright
 ## Архитектура
 
 Код разделён на `domain`, `application`, `infrastructure` и `presentation`. GREEN-API подключён через порт `GreenApiPort`, внешние ответы проверяются Zod-схемами, состояние диалогов хранится в нормализованном reducer.
-
-Подробности: [архитектура](docs/architecture.md) и [ADR](docs/adr/).
